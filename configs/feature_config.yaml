@@ -1,0 +1,9 @@
+#использовать ли нормализацию признаков (use_scaling: true)
+#включать ли новую фичу (use_user_embeddings: true)
+#применять ли старую/новую модель (use_v2_model: false)
+#включать ли feature selection
+#использовать ли прод-или-экспериментальный preprocessing
+
+#features:
+#  use_embeddings: true
+#  use_text_tfidf: false
