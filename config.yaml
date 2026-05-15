@@ -1,0 +1,20 @@
+lgbm_params:
+  "objective": "binary"
+  "metric": ["auc", "average_precision"]
+  "boosting_type": "gbdt"
+  "learning_rate": 0.03
+  "num_leaves": 31
+  "max_depth": 7  # -1 means it has no limits, it could memorize identities
+  "feature_fraction": 0.7  # fraction features used per tree (0.4 to 0.7)
+  "bagging_fraction": 0.8
+  "bagging_freq": 5
+  "lambda_l1": 0.5
+  "lambda_l2": 0.5
+  "min_data_in_leaf": 50  # anti overfitting and memorization (50-100)
+  "is_unbalance": False
+  "scale_pos_weight": 10 # penalty for error. Big value means aggressive model
+  "verbose": -1
+
+business_targets:
+  "target_precision": 0.75  # If target_precision=0.75, it means that 75% alerts should be real, and no more than 25% should be good (angry) customers.
+  "target_fpr": 0.001

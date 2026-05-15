@@ -206,12 +206,6 @@ WHERE transaction_time_features."TransactionID" = step2."TransactionID";
 --  is_new_device
 -- =========================================
 
-UPDATE transaction_time_features
-SET "DeviceInfo" = COALESCE("DeviceInfo", 'missing');
-
-UPDATE transaction_time_features
-SET "DeviceType" = COALESCE("DeviceType", 'missing');
-
 ALTER TABLE transaction_time_features
 ADD COLUMN is_new_device_uid1 bigint;
 
@@ -228,8 +222,8 @@ SET is_new_device_uid1 =
     CASE WHEN EXISTS(
         SELECT 1 FROM transaction_time_features t2
         WHERE t2."TransactionDT" < t1."TransactionDT"
-        AND t2."DeviceInfo" = t1."DeviceInfo"
-        AND t2."DeviceType" = t1."DeviceType"
+        AND t2."DeviceInfo" IS NOT DISTINCT FROM t1."DeviceInfo" -- comparison of nulls problem
+        AND t2."DeviceType" IS NOT DISTINCT FROM t1."DeviceType" -- comparison of nulls problem
         AND t2."uid1" = t1."uid1"
     )
     THEN 0 ELSE 1 END;
@@ -240,13 +234,11 @@ DROP INDEX idx_device_uid1_lookup;
 --  final_features
 -- =========================================
 
--- SNIPPET: Get all columns names of the table as a list
+-- Get all columns names of the table as a list
 SELECT string_agg(column_name, ', ' ORDER BY ordinal_position)
 FROM information_schema.columns
 WHERE table_schema = 'public'
   AND table_name = 'transaction_features';
-
-
 
 
 CREATE TABLE final_features AS
