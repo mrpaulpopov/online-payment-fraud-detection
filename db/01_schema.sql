@@ -5,6 +5,14 @@
 -- docker cp data/train_identity.csv my_postgres:/train_identity.csv
 -- docker cp data/train_transaction.csv my_postgres:/train_transaction.csv
 
+-- Then, I create postgresql-container:
+-- docker run --name my-postgres \
+-- -e POSTGRES_USER=user \
+-- -e POSTGRES_PASSWORD=password \
+-- -e POSTGRES_DB=bankdb \
+-- -p 5432:5432 \
+-- -d postgres
+
 CREATE TABLE test_identity (
   "TransactionID" BIGINT,
   "id-01" DOUBLE PRECISION,
@@ -885,8 +893,3 @@ CREATE TABLE train_transaction (
   "V338" DOUBLE PRECISION,
   "V339" DOUBLE PRECISION
 );
-
-COPY test_identity FROM '/test_identity.csv' WITH (FORMAT csv, HEADER true);
-COPY test_transaction FROM '/test_transaction.csv' WITH (FORMAT csv, HEADER true);
-COPY train_identity FROM '/train_identity.csv' WITH (FORMAT csv, HEADER true);
-COPY train_transaction FROM '/train_transaction.csv' WITH (FORMAT csv, HEADER true);

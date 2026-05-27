@@ -108,3 +108,58 @@ services:
     depends_on:
       postgres_db:
         condition: service_healthy # Ждем, пока healthcheck базы не скажет "ОК"
+
+
+
+AUTOENCODER
+
+Pytorch: У меня единый пайплайн обучения и инференса, поэтому после обучения в pytorch модель из оперативной памяти
+сразу же используется. Она дополнительно сохраняется в файл, впрочем
+
+
+To prevent OpenMP threading conflicts on macOS and ensure stable CPU usage during the pipeline execution,
+the maximum number of threads for LightGBM is explicity limited in config.yaml.
+
+## Known Issues
+**macOS: SIGSEGV when running LightGBM after PyTorch**
+
+On macOS, PyTorch and LightGBM both ship their own OpenMP runtime (`libomp`),
+which causes a segfault when both are used in the same process.
+
+The pipeline automatically sets `num_threads=1` for LightGBM on macOS,
+which disables the conflicting OpenMP initialization. Training will be
+slower locally, but Docker (Linux) runs with full multi-threading.
+
+## Known Issues
+
+**macOS: SIGSEGV when running LightGBM after PyTorch**
+
+On macOS, PyTorch and LightGBM both ship their own OpenMP runtime (`libomp`),
+which causes a segfault when both are used in the same process.
+
+The pipeline automatically sets `num_threads=1` for LightGBM on macOS,
+which disables the conflicting OpenMP initialization. Training will be
+slower locally, but Docker (Linux) runs with full multi-threading.
+
+SHAP summary plot is also skipped on macOS for the same reason.
+All visualizations are available when running via Docker.
+
+
+X -> X_train ------------------------------------>> X_train['anomaly_score'] -> train_data
+-------------->> X_train_nn -> X_train_nn_short
+
+MLFLOW: 5001 port
+
+Чему я научился новому?
+1. Высокое заполнение ram, поэтому периодическое ручное удаление тяжелых элементов и gc.collect. High cardinality. Конвертация float64-float32. Отслеживание потребляемого RAM
+2. Проблема с портом 5000 на macOS, поэтому mapping выходного порта 5001:5000
+3. Docker: порядок выполнения сервисов, conditions, причем выполнение своего тестового запроса.
+4. Проблема OpenMP на macOS, попытка ее обойти
+5. Уровни logging
+6. Чтение большого read_sql через chunksize
+7. Ручное написание аналога train_test_split, работающего по временному ряду (через iloc)
+8. Автоматическая сборка requirements.txt через pipreqs
+9. Проверка fraud drift после разделения данных
+10. Autoencoder (nn на основе самой себя)
+11. Анализ SHAP
+12. Динамический Dockerfile

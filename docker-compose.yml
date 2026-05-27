@@ -1,10 +1,9 @@
-version: '3.8'
-
 services:
   db:
     image: postgres:16
-    container_name: my_postgres
+    container_name: postgres-db
     restart: always
+    command: postgres -c max_wal_size=10GB -c checkpoint_timeout=10min # increase 'RAM' for each operation up to 10GB, do not cache on disk too often.
     environment:
       POSTGRES_USER: user
       POSTGRES_PASSWORD: password
@@ -13,14 +12,53 @@ services:
       - "5432:5432"
     volumes:
       - pg_data:/var/lib/postgresql/data
+      - ./db:/docker-entrypoint-initdb.d:ro # init scripts folder
+      - ./db/data:/data:ro
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U user -d bankdb && PGPASSWORD=password psql -U user -d bankdb -c 'SELECT 1 FROM train_final_features LIMIT 1;' && PGPASSWORD=password psql -U user -d bankdb -c 'SELECT 1 FROM test_final_features LIMIT 1;'" ]
+      interval: 1m
+      timeout: 10s
+      retries: 60
+      start_period: 20s
 
   mlflow:
     image: ghcr.io/mlflow/mlflow:latest
     ports:
-      - "5000:5000"
+      - "5001:5000"
     volumes:
       - ./mlruns:/mlruns
-    command: mlflow server --host 0.0.0.0 --artifact-root /mlruns
+    command: mlflow server --host 0.0.0.0 --backend-store-uri sqlite:////mlruns/mlflow.db --default-artifact-root /mlruns/artifacts --allowed-hosts mlflow,mlflow:5000,localhost,localhost:5000,localhost:5001
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:5000')\""]
+      interval: 4m
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+
+  training:
+    build: .
+    container_name: fraud_training
+    depends_on:
+      db:
+        condition: service_healthy # checks that it's not only started, but is also ready
+      mlflow:
+        condition: service_healthy
+    environment:
+      - POSTGRES_HOST=db # overriding .env-file
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+    volumes:
+      - ./docs/plots:/app/docs/plots
+      - ./models:/app/models
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
 
 volumes:
   pg_data:

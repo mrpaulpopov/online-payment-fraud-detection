@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 import logging
 
 
-def load_data():
+def load_data(table_name):
     start = time.time()
     load_dotenv() #.env
 
@@ -22,9 +22,10 @@ def load_data():
         # logging.error(f"PostgreSQL connection failed: {e.orig}") # Debug
         sys.exit(1)
 
-    query = """
+    # Zero possibility of SQL-injections, therefore it's safe to use.
+    query = f"""
     SELECT *
-    FROM final_features
+    FROM {table_name}
     """
 
     df_iter = pd.read_sql(query, engine, chunksize=50000)
@@ -34,13 +35,21 @@ def load_data():
     df = df.sort_values("TransactionDT")
     df = df.reset_index(drop=True) # советуют после сортировки
 
+    if "isFraud" in df.columns:
+        y = df["isFraud"]
+    else:
+        y = None
+
+
     # 2. Drop useless columns
     X = df.drop(columns=["isFraud", "TransactionID", "TransactionDT", #
-                         "id_24", "id_25", "id_07", "id_08", "id_21", "id_26", "id_27", "id_22", "id_23", "dist2", "D7", "id_18", # trash values
-                         "uid1", "uid2", "uid3", "uid4", "card1"]) # overfitting.
-    y = df["isFraud"]
+                         "id_24", "id_25", "id_07", "id_08", "id_21", "id_26", "id_27", # trash values
+                         "id_22", "id_23", "dist2", "D7", "id_18",                      # trash values
+                         "uid1", "uid2", "uid3", "uid4", "card1"], errors='ignore')     # overfitting
 
-
-    print(f"Database loading completed in {time.time() - start:.4f}s")
-    # print(X.isnull().mean().sort_values(ascending=False)) # 1. Analyze almost useless columns
+    # Downsampling
+    float64_cols = X.select_dtypes(include=['float64']).columns
+    X[float64_cols] = X[float64_cols].astype('float32')
+    logging.info(f"{table_name}: loading completed in {time.time() - start:.4f}s")
+    # print(X.isnull().mean().sort_values(ascending=False)) # Analyze almost useless columns
     return X, y

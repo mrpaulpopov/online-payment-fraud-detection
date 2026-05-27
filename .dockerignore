@@ -1,0 +1,26 @@
+# 1. Тяжелые данные (самое главное!)
+data/
+db/data/
+*.csv
+*.zip
+
+# 2. Виртуальное окружение Python
+.venv/
+venv/
+env/
+
+# 3. Кэш питона
+__pycache__/
+*.pyc
+*.pyo
+
+# 4. Папки с результатами (они прокидываются через volumes)
+mlruns/
+models/
+plots/
+
+# 5. Системные папки и IDE
+.git/
+.idea/
+.vscode/
+.DS_Store
