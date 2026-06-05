@@ -87,19 +87,6 @@ P_emaildomain - да, валидный признак: модель опреде
 
 
 Не запускать fastapi, пока база не поднята. Прописать это в docker-compose:
-services:
-  postgres_db:
-    image: postgres:14
-    environment:
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: fraud_db
-    # Учим Docker пинговать базу
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U user -d fraud_db"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
 
   fastapi_app:
     build: .
@@ -145,8 +132,6 @@ SHAP summary plot is also skipped on macOS for the same reason.
 All visualizations are available when running via Docker.
 
 
-X -> X_train ------------------------------------>> X_train['anomaly_score'] -> train_data
--------------->> X_train_nn -> X_train_nn_short
 
 MLFLOW: 5001 port
 
@@ -162,4 +147,8 @@ MLFLOW: 5001 port
 9. Проверка fraud drift после разделения данных
 10. Autoencoder (nn на основе самой себя)
 11. Анализ SHAP
-12. Динамический Dockerfile
+12. Динамический Dockerfile (с override)
+
+
+docker-compose up --build
+docker-compose -f docker-compose.yml -f docker-compose.gpu.yml up --build

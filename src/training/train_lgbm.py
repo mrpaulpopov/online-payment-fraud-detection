@@ -9,12 +9,9 @@ import pandas as pd
 from sklearn.metrics import (
     precision_recall_curve
 )
-
+from src.paths import INFERENCE_PATH, LGBM_MODEL_PATH
 from src.data.split import train_split
 
-
-# 1. string to category convert
-# 2. train split
 
 def prepare_data_for_lgbm(X_train, X_val, X_test, y_train, y_val, y_test):
     categorical_cols = X_train.select_dtypes(include=["object", "string"]).columns  # X_train as a gold standard
@@ -38,10 +35,8 @@ def training_lgbm(train_data, valid_data, params):
     mlflow.log_metric("best_iteration", model.best_iteration)
     logging.info(f"Training completed in {time.time() - start:.4f}s")
 
-    # Save to the file
-    os.makedirs("models", exist_ok=True)
-    model.save_model("models/lgbm_model.txt", num_iteration=model.best_iteration)
-    logging.info("Model saved to models/lgbm_model.txt")
+    model.save_model(LGBM_MODEL_PATH, num_iteration=model.best_iteration)
+    logging.info(f"Model saved to {LGBM_MODEL_PATH}")
     return
 
 
@@ -75,10 +70,8 @@ def find_best_threshold(model, X_val, y_val, target_precision):
     mlflow.log_param("target_precision", target_precision)  # customized parameter
 
     # "Append" JSON: read-append-overwrite
-    with open("models/inference_meta.json", "r") as f:
-        inference_meta = json.load(f)
+    inference_meta = json.loads(INFERENCE_PATH.read_text(encoding="utf-8"))
     inference_meta["best_threshold"] = float(best_threshold)
-    with open("models/inference_meta.json", "w") as f:
-        json.dump(inference_meta, f, indent=4)
+    INFERENCE_PATH.write_text(json.dumps(inference_meta, indent=4), encoding="utf-8")
 
     return best_threshold

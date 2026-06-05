@@ -10,11 +10,9 @@ from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import StandardScaler
 from torch import nn, optim
 from torch.utils.data import TensorDataset, DataLoader
-
+from src.paths import NN_MODEL_PATH
 from src.models.autoencoder import autoencoder_nn
-
-
-# from torch.utils.tensorboard import SummaryWriter
+from src.paths import IMPUTER_SCALER_PATH
 
 
 def pytorch_preprocessing(X_train, X_val, X_test, y_train, y_val, y_test, high_cardinality_threshold):
@@ -53,7 +51,7 @@ def pytorch_preprocessing(X_train, X_val, X_test, y_train, y_val, y_test, high_c
     str_val_df = str_val_df.reindex(columns=str_train_df.columns, fill_value=0).astype('float32')
     str_test_df = str_test_df.reindex(columns=str_train_df.columns, fill_value=0).astype('float32')
 
-    # Z-SCORE FOR NUMERIC COLUMNS
+    # NUMERIC COLUMNS: Z-SCORE
     num_imputer = SimpleImputer(strategy='mean')
     scaler = StandardScaler()
 
@@ -64,10 +62,9 @@ def pytorch_preprocessing(X_train, X_val, X_test, y_train, y_val, y_test, high_c
     del num_train_data
     gc.collect()
 
-    os.makedirs('models', exist_ok=True)
-    with open('models/preprocessing.pkl', 'wb') as f:
+    with IMPUTER_SCALER_PATH.open('wb') as f:
         pickle.dump({'imputer': num_imputer, 'scaler': scaler}, f)
-    logging.info('Imputer and Scaler was saved to models/preprocessing.pkl')
+    logging.info(f'Imputer and Scaler was saved to {IMPUTER_SCALER_PATH}')
 
     num_val_data = num_imputer.transform(X_val[num_cols])
     num_val_data = scaler.transform(num_val_data).astype('float32')
@@ -106,13 +103,9 @@ def build_dataloader(X_data, batch_size):  # function is used for both train and
 
 
 def train_nn_loop(model, train_loader, val_loader, test_loader, optimizer, loss_fn, N_EPOCHS):
-    # model_path, DEVICE = Config.MODEL_PATH, Config.DEVICE
-    MODEL_PATH = "models/nn_model.pt"
     DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model.to(DEVICE)
     logging.info(f"Starting training on {DEVICE}")
-    # ===== TensorBoard logging =====
-    # writer = SummaryWriter(log_dir=f"logs/mf_model_{int(time.time())}")
 
     for epoch in range(N_EPOCHS):
         model.train()
@@ -202,21 +195,11 @@ def train_nn_loop(model, train_loader, val_loader, test_loader, optimizer, loss_
         )
         print("-" * 50)
 
-
-        # ===== TensorBoard logging =====
-        # writer.add_scalar("train_loss", train_loss, epoch)
-        # writer.add_scalar("val_loss", val_loss, epoch)
-        # writer.add_scalar("val_rmse", rmse, epoch)
-        # writer.add_scalar("val_mae", mae, epoch)
-
-    # writer.close()
-    torch.save(model.state_dict(), MODEL_PATH)
-    logging.info("Model saved to models/nn_model.pt")
+    torch.save(model.state_dict(), NN_MODEL_PATH)
+    logging.info(f"Model saved to {NN_MODEL_PATH}")
 
 
 def training_nn(X_train, X_val, X_test, LEARNING_RATE, BATCH_SIZE, N_EPOCHS):
-    # data_path, model_path, mapping_path = Config.DATA_PATH, Config.MODEL_PATH, Config.MAPPING_PATH
-
     # Dimensions
     input_dim = X_train.shape[1]
 

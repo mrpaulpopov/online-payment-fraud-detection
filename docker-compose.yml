@@ -2,8 +2,9 @@ services:
   db:
     image: postgres:16
     container_name: postgres-db
+    shm_size: '2gb'
     restart: always
-    command: postgres -c max_wal_size=10GB -c checkpoint_timeout=10min # increase 'RAM' for each operation up to 10GB, do not cache on disk too often.
+    command: postgres -c max_wal_size=10GB -c checkpoint_timeout=10min -c work_mem=256MB -c maintenance_work_mem=512MB # increase 'RAM' for each operation up to 10GB, do not cache on disk too often.
     environment:
       POSTGRES_USER: user
       POSTGRES_PASSWORD: password
@@ -39,7 +40,8 @@ services:
       start_period: 15s
 
   training:
-    build: .
+    build:
+      context: .
     container_name: fraud_training
     depends_on:
       db:
@@ -52,13 +54,6 @@ services:
     volumes:
       - ./docs/plots:/app/docs/plots
       - ./models:/app/models
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
 
 volumes:
   pg_data:

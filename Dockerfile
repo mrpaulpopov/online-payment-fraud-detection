@@ -1,21 +1,21 @@
-# Базовый легкий образ Python
-FROM python:3.11-slim
+# Dockerfile with overrides. Default values are written here unless it would be overriden by new .yml
+ARG BASE_IMAGE=python:3.11-slim
 
-# Устанавливаем системные библиотеки, необходимые для LightGBM (OpenMP)
-RUN apt-get update && apt-get install -y \
-    libgomp1 \
-    gcc \
-    g++ \
-    git \
-    && rm -rf /var/lib/apt/lists/*
+FROM ${BASE_IMAGE}
 
 WORKDIR /app
 ENV PYTHONPATH=/app
 ENV PYTHONUNBUFFERED=1
+
+RUN apt-get update && apt-get install -y git libgomp1 && rm -rf /var/lib/apt/lists/*
+
+ARG TORCH_INSTALL_CMD="pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu"
+
+RUN ${TORCH_INSTALL_CMD}
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-CMD ["python", "src/training/run_training.py"]
+CMD ["python", "src/training_pipeline.py"]

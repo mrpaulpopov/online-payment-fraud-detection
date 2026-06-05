@@ -86,19 +86,3 @@ def plot_shap_values(model, X_val):
     plt.savefig(f"docs/plots/shap_summary.png", bbox_inches="tight", dpi=300)
     plt.close()
     logging.info(f"Shap summary plots saved in docs/plots/shap_summary.png")
-
-
-
-def false_positives_handling(model, X_val, y_val, best_threshold):
-    y_val_prob = model.predict(X_val, num_iteration=model.best_iteration)
-    y_val_pred = (y_val_prob > best_threshold).astype(int)
-
-    # Создаем маску для ложных срабатываний (в реальности фрода нет, но модель сказала "да")
-    fp_mask = (y_val == 0) & (y_val_pred == 1)
-    false_positives = X_val[fp_mask].copy()
-
-    # Добавляем предсказанные вероятности, чтобы видеть уверенность модели
-    false_positives['predict_prob'] = y_val_prob[fp_mask]
-    logging.info(f"Count of false positives: {len(false_positives)}")
-    # Выводим топ-10 самых "уверенных" ошибок модели
-    print(false_positives.sort_values(by='predict_prob', ascending=False).head(10))

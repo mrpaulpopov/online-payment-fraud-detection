@@ -1,0 +1,15 @@
+services:
+  training:
+    build:
+      context: .
+      args:
+        BASE_IMAGE: pytorch/pytorch:2.2.0-cuda11.8-cudnn8-runtime
+        TORCH_INSTALL_CMD: "echo 'PyTorch is already installed in base image'"
+
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]

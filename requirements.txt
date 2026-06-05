@@ -6,6 +6,7 @@ mlflow_skinny==3.12.0
 mlflow_tracing==3.12.0
 numpy==2.4.6
 pandas<3.0.0
+pathlib==1.0.1
 psycopg2_binary==2.9.12
 pydantic==2.13.4
 python-dotenv==1.2.2
