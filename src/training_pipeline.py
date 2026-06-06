@@ -14,7 +14,7 @@ from src.data.split import train_split
 from src.training.evaluation import evaluate_and_log_metrics, cross_validation, plot_shap_values
 from src.training.train_lgbm import prepare_data_for_lgbm, find_best_threshold, training_lgbm
 from src.training.train_nn import pytorch_preprocessing, training_nn, get_anomaly_scores, assign_anomaly_scores
-from src.paths import INFERENCE_PATH, CONFIG_PATH, CACHE_DIR, LGBM_MODEL_PATH
+from src.paths import INFERENCE_PATH, CONFIG_PATH, LGBM_MODEL_PATH
 
 # TODO: temp
 logging.basicConfig(
@@ -79,9 +79,8 @@ def training_pipeline():
         mlflow.log_artifact("test_enriched.parquet", artifact_path="datasets")
 
         # Saving Run ID
-        run_id = run.info.run_id
         inference_meta = {
-            "run_id": run_id,
+            "run_id": run.info.run_id,
         }
         INFERENCE_PATH.write_text(json.dumps(inference_meta, indent=4), encoding="utf-8")
 
@@ -99,13 +98,17 @@ def evaluation_pipeline():
     target_precision = config["business_targets"]["target_precision"]
     target_fpr = config["business_targets"]["target_fpr"]
 
-    # Loading data
+    # MLflow settings
+    tracking_uri = os.getenv("MLFLOW_TRACKING_URI", "http://localhost:5000")
+    mlflow.set_tracking_uri(tracking_uri)
     client = mlflow.MlflowClient()
-    local_path = client.download_artifacts(run_id, "datasets/train_enriched.parquet", str(CACHE_DIR))
+
+    # Loading data
+    local_path = client.download_artifacts(run_id, "datasets/train_enriched.parquet")
     train_df = pd.read_parquet(local_path)
-    local_path = client.download_artifacts(run_id, "datasets/val_enriched.parquet", str(CACHE_DIR))
+    local_path = client.download_artifacts(run_id, "datasets/val_enriched.parquet")
     val_df = pd.read_parquet(local_path)
-    local_path = client.download_artifacts(run_id, "datasets/test_enriched.parquet", str(CACHE_DIR))
+    local_path = client.download_artifacts(run_id, "datasets/test_enriched.parquet")
     test_df = pd.read_parquet(local_path)
 
     X_train = train_df.drop(columns=['isFraud'])
@@ -123,24 +126,19 @@ def evaluation_pipeline():
     # Loading previously saved model
     model_lgbm = lgb.Booster(model_file=LGBM_MODEL_PATH)
 
-    tracking_uri = os.getenv("MLFLOW_TRACKING_URI", "http://localhost:5000")
-    mlflow.set_tracking_uri(tracking_uri)
-    mlflow.set_experiment("fraud_detection")
-    with mlflow.start_run(run_id=run_id):
-        logging.info(f'Successfully reconnected to MLflow run: {run_id}')
-        logging.info('Starting find_best_threshold')
-        best_threshold = find_best_threshold(model_lgbm, X_val, y_val, target_precision)
-        logging.info('Starting evaluate train')
-        evaluate_and_log_metrics(model_lgbm, X_train, y_train, best_threshold, target_fpr, prefix='train')
-        logging.info('Starting evaluate val')
-        evaluate_and_log_metrics(model_lgbm, X_val, y_val, best_threshold, target_fpr, prefix='val')
-        evaluate_and_log_metrics(model_lgbm, X_test, y_test, best_threshold, target_fpr, prefix='test') # Test
+    logging.info('Starting find_best_threshold')
+    best_threshold = find_best_threshold(model_lgbm, X_val, y_val, target_precision, run_id)
+    logging.info('Starting evaluate train')
+    evaluate_and_log_metrics(model_lgbm, X_train, y_train, best_threshold, target_fpr, run_id, prefix='train')
+    logging.info('Starting evaluate val')
+    evaluate_and_log_metrics(model_lgbm, X_val, y_val, best_threshold, target_fpr, run_id, prefix='val')
+    evaluate_and_log_metrics(model_lgbm, X_test, y_test, best_threshold, target_fpr, run_id, prefix='test') # Test
 
-    plot_shap_values(model_lgbm, X_val)
+    plot_shap_values(model_lgbm, X_val, run_id)
 
 
-training_pipeline()
-# evaluation_pipeline()
+# training_pipeline()
+evaluation_pipeline()
 
 # mlflow ui
 # http://127.0.0.1:5001

@@ -27,7 +27,7 @@ services:
     ports:
       - "5001:5000"
     volumes:
-      - ./mlruns:/mlruns
+      - mlflow_artifacts:/mlruns
     command: mlflow server --host 0.0.0.0 --backend-store-uri sqlite:////mlruns/mlflow.db --default-artifact-root /mlruns/artifacts --allowed-hosts mlflow,mlflow:5000,localhost,localhost:5000,localhost:5001
     depends_on:
       db:
@@ -54,8 +54,8 @@ services:
     volumes:
       - ./docs/plots:/app/docs/plots
       - ./models:/app/models
+      - mlflow_artifacts:/mlruns
 
 volumes:
   pg_data:
-
-
+  mlflow_artifacts:

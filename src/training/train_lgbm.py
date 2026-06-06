@@ -40,11 +40,12 @@ def training_lgbm(train_data, valid_data, params):
     return
 
 
-def find_best_threshold(model, X_val, y_val, target_precision):
+def find_best_threshold(model, X_val, y_val, target_precision, run_id):
     # Threshold управляет переводом из probability 0.0-1.0 в decision 0-1 (not fraud, legit / fraud, to block).
     # С какого момента probability считается fraud?
 
     # Это автоматический способ нахождения threshold через business target (желаемый TARGET_PRECISION)
+    client = mlflow.MlflowClient()
     y_val_prob = model.predict(X_val, num_iteration=model.best_iteration)  # probability from 0.0 to 1.0
     precisions, recalls, thresholds = precision_recall_curve(y_val, y_val_prob)  # 'меню' всех возможных вариантов
 
@@ -66,10 +67,10 @@ def find_best_threshold(model, X_val, y_val, target_precision):
         best_threshold = 0.5  # fallback
         logging.warning("Target Precision is unreachable. Using default threshold 0.5.")
 
-    mlflow.log_param("best_threshold", best_threshold)
-    mlflow.log_param("target_precision", target_precision)  # customized parameter
+    client.log_param(run_id, "best_threshold", best_threshold)
+    client.log_param(run_id, "target_precision", target_precision)  # customized parameter
 
-    # "Append" JSON: read-append-overwrite
+    # "Append" JSON: Read-Append-Overwrite
     inference_meta = json.loads(INFERENCE_PATH.read_text(encoding="utf-8"))
     inference_meta["best_threshold"] = float(best_threshold)
     INFERENCE_PATH.write_text(json.dumps(inference_meta, indent=4), encoding="utf-8")

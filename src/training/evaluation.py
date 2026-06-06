@@ -18,9 +18,11 @@ import numpy as np
 import shap
 import logging
 import matplotlib.pyplot as plt
+from src.paths import PLOTS_DIR
 
 
-def evaluate_and_log_metrics(model, X, y, best_threshold, target_fpr, prefix=None):
+def evaluate_and_log_metrics(model, X, y, best_threshold, target_fpr, run_id, prefix=None):
+    client = mlflow.MlflowClient()
     y = y.astype(int)
     y_prob = model.predict(X, num_iteration=model.best_iteration)  # probability from 0.0 to 1.0
     y_pred = (y_prob > best_threshold).astype(int)  # astype(int) converts False/True to 0/1
@@ -34,7 +36,7 @@ def evaluate_and_log_metrics(model, X, y, best_threshold, target_fpr, prefix=Non
 
     fpr, tpr, _ = roc_curve(y, y_prob)
     recall_at_fpr = max(tpr[fpr <= target_fpr])
-    mlflow.log_metric(f"{prefix}_recall_at_fpr", recall_at_fpr)
+    client.log_metric(run_id,f"{prefix}_recall_at_fpr", recall_at_fpr)
 
 
 def cross_validation(X_train, X_val, y_train, y_val, params, n_splits):
@@ -75,14 +77,16 @@ def cross_validation(X_train, X_val, y_train, y_val, params, n_splits):
     logging.info(f"CV completed in {time.time() - start:.4f}s")
 
 
-def plot_shap_values(model, X_val):
+def plot_shap_values(model, X_val, run_id):
+    client = mlflow.MlflowClient()
     logging.info('Starting plot_shap_values')
     explainer = shap.TreeExplainer(model)
     shap_values = explainer(X_val)
 
     plt.figure(figsize=(10, 6))
     shap.summary_plot(shap_values, X_val, show=False)
-    os.makedirs("plots", exist_ok=True)
-    plt.savefig(f"docs/plots/shap_summary.png", bbox_inches="tight", dpi=300)
+    save_path = PLOTS_DIR / 'shap_values.png'
+    plt.savefig(save_path, bbox_inches="tight", dpi=300)
     plt.close()
-    logging.info(f"Shap summary plots saved in docs/plots/shap_summary.png")
+    client.log_artifact(run_id, save_path, 'plots')
+    logging.info("Shap summary plots saved.")
