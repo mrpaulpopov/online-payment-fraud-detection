@@ -70,7 +70,8 @@ def find_best_threshold(model, X_val, y_val, target_precision, run_id):
     client.log_param(run_id, "best_threshold", best_threshold)
     client.log_param(run_id, "target_precision", target_precision)  # customized parameter
 
-    # "Append" JSON: Read-Append-Overwrite
+    # Saving best_threshold
+    # "Append" JSON: Read-Append-Write
     inference_meta = json.loads(INFERENCE_PATH.read_text(encoding="utf-8"))
     inference_meta["best_threshold"] = float(best_threshold)
     INFERENCE_PATH.write_text(json.dumps(inference_meta, indent=4), encoding="utf-8")

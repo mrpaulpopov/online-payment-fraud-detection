@@ -18,4 +18,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-CMD ["python", "src/training_pipeline.py"]
+CMD ["python", "src/app/main.py"]

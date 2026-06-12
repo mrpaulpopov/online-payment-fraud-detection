@@ -32,6 +32,9 @@ def training_pipeline():
     config = yaml.safe_load(CONFIG_PATH.read_text(encoding="utf-8"))
     params = config["lgbm_params"]
 
+    # Initializing .json with information for inference
+    if not INFERENCE_PATH.exists() or INFERENCE_PATH.stat().st_size == 0:
+        INFERENCE_PATH.write_text("{}", encoding="utf-8")
 
     # Loading data
     X, y = load_data(table_name='train_final_features')
@@ -79,9 +82,9 @@ def training_pipeline():
         mlflow.log_artifact("test_enriched.parquet", artifact_path="datasets")
 
         # Saving Run ID
-        inference_meta = {
-            "run_id": run.info.run_id,
-        }
+        # "Append" JSON: Read-Append-Write
+        inference_meta = json.loads(INFERENCE_PATH.read_text(encoding="utf-8"))
+        inference_meta["run_id"] = run.info.run_id
         INFERENCE_PATH.write_text(json.dumps(inference_meta, indent=4), encoding="utf-8")
 
     logging.info('Training pipeline finished')
@@ -137,8 +140,7 @@ def evaluation_pipeline():
     plot_shap_values(model_lgbm, X_val, run_id)
 
 
-# training_pipeline()
-evaluation_pipeline()
+
 
 # mlflow ui
 # http://127.0.0.1:5001

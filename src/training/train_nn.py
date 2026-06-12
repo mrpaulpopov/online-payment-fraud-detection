@@ -1,4 +1,5 @@
 import gc
+import json
 import logging
 import os
 import pickle
@@ -10,7 +11,7 @@ from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import StandardScaler
 from torch import nn, optim
 from torch.utils.data import TensorDataset, DataLoader
-from src.paths import NN_MODEL_PATH
+from src.paths import NN_MODEL_PATH, INFERENCE_PATH
 from src.models.autoencoder import autoencoder_nn
 from src.paths import IMPUTER_SCALER_PATH
 
@@ -31,7 +32,7 @@ def pytorch_preprocessing(X_train, X_val, X_test, y_train, y_val, y_test, high_c
 
     logging.info(f"Dropped high cardinality cols: {set(all_str_cols) - set(str_cols)}")
 
-    # STRINGS
+    # STRING COLUMNS: OHE
     str_train_data = X_train[str_cols].astype('string').fillna('missing')
     str_train_df = pd.get_dummies(str_train_data, dummy_na=False, dtype='float32')
     del str_train_data
@@ -51,6 +52,8 @@ def pytorch_preprocessing(X_train, X_val, X_test, y_train, y_val, y_test, high_c
     str_val_df = str_val_df.reindex(columns=str_train_df.columns, fill_value=0).astype('float32')
     str_test_df = str_test_df.reindex(columns=str_train_df.columns, fill_value=0).astype('float32')
 
+
+
     # NUMERIC COLUMNS: Z-SCORE
     num_imputer = SimpleImputer(strategy='mean')
     scaler = StandardScaler()
@@ -62,6 +65,7 @@ def pytorch_preprocessing(X_train, X_val, X_test, y_train, y_val, y_test, high_c
     del num_train_data
     gc.collect()
 
+    # Saving for inference
     with IMPUTER_SCALER_PATH.open('wb') as f:
         pickle.dump({'imputer': num_imputer, 'scaler': scaler}, f)
     logging.info(f'Imputer and Scaler was saved to {IMPUTER_SCALER_PATH}')
@@ -91,6 +95,18 @@ def pytorch_preprocessing(X_train, X_val, X_test, y_train, y_val, y_test, high_c
     result_test = pd.concat([str_test_df, num_test_df], axis=1)
     del str_test_df, num_test_df
     gc.collect()
+
+    # Saving columns information for inference
+    inference_meta = json.loads(INFERENCE_PATH.read_text(encoding="utf-8"))
+    inference_meta["pytorch_features"] = {
+        "num_cols": num_cols.tolist(),  # pandas indexes to list
+        "str_cols": str_cols,  # is already list
+        "all_str_cols": all_str_cols.tolist(),
+        "original_features": X_train.columns.tolist(),
+        "final_pytorch_features": result_train.columns.tolist(),
+    }
+    INFERENCE_PATH.write_text(json.dumps(inference_meta, indent=4), encoding="utf-8")
+    logging.info('PyTorch preprocessing finished and metadata saved')
 
     return result_train, result_val, result_test
 
@@ -202,6 +218,12 @@ def train_nn_loop(model, train_loader, val_loader, test_loader, optimizer, loss_
 def training_nn(X_train, X_val, X_test, LEARNING_RATE, BATCH_SIZE, N_EPOCHS):
     # Dimensions
     input_dim = X_train.shape[1]
+
+    # Saving input_dim
+    # "Append" JSON: Read-Append-Write
+    inference_meta = json.loads(INFERENCE_PATH.read_text(encoding="utf-8"))
+    inference_meta["input_dim"] = int(input_dim)
+    INFERENCE_PATH.write_text(json.dumps(inference_meta, indent=4), encoding="utf-8")
 
     model = autoencoder_nn(input_dim)
 
