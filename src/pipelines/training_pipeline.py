@@ -44,7 +44,7 @@ def training_pipeline():
     gc.collect()
 
     # PyTorch side
-    X_train_nn, X_val_nn, X_test_nn = pytorch_preprocessing(X_train, X_val, X_test, y_train, y_val, y_test, high_cardinality_threshold=100)
+    X_train_nn, X_val_nn, X_test_nn = pytorch_preprocessing(X_train, X_val, X_test, high_cardinality_threshold=100)
     logging.info('Starting PyTorch training')
 
     # For training, we need only isFraud=0 columns

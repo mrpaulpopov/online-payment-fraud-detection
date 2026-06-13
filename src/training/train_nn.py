@@ -16,7 +16,7 @@ from src.models.autoencoder import autoencoder_nn
 from src.paths import IMPUTER_SCALER_PATH
 
 
-def pytorch_preprocessing(X_train, X_val, X_test, y_train, y_val, y_test, high_cardinality_threshold):
+def pytorch_preprocessing(X_train, X_val, X_test, high_cardinality_threshold):
     logging.info('Starting PyTorch preprocessing')
 
     # Train columns as a gold standard

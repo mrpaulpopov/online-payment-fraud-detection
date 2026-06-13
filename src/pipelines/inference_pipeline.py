@@ -1,14 +1,18 @@
 import pickle
 import lightgbm as lgb
 
+from src.data.data_loader import load_data
+from src.data.split import train_split
 from src.models.autoencoder import autoencoder_nn
 from src.paths import IMPUTER_SCALER_PATH, LGBM_MODEL_PATH, INFERENCE_PATH
 import json
 import torch
+import time
 import pandas as pd
 from src.inference_test import new_data
 from src.paths import NN_MODEL_PATH
 import torch.nn.functional as F
+import logging
 
 def inference_pipeline():
     # Read JSON
@@ -70,6 +74,29 @@ def inference_pipeline():
             df_new_lgmb[col] = pd.to_numeric(df_new_lgmb[col], errors='coerce')
 
 
-    predictions = model_lgbm.predict(df_new_lgmb)
-    predicted_classes = (predictions > best_threshold).astype(int)
-    print(predicted_classes)
+    # prediction = model_lgbm.predict(df_new_lgmb)
+    # predicted_class = (prediction > best_threshold).astype(int)
+    # print(prediction)
+    # print(predicted_class)
+
+    import mlflow
+    run_id = inference_meta["run_id"]
+
+    client = mlflow.MlflowClient()
+    local_path = client.download_artifacts(run_id, "datasets/train_enriched.parquet")
+    train_enriched = pd.read_parquet(local_path)
+
+    fraud_transactions = train_enriched[train_enriched['isFraud'] == 1]
+    guaranteed_fraud_row = fraud_transactions.head(1).copy()
+    print(f"Actual Pandas index of this fraud row: {guaranteed_fraud_row.index[0]}")
+
+    features_only = guaranteed_fraud_row.drop(columns=["isFraud"])
+
+    start = time.time()
+    prediction = model_lgbm.predict(features_only)
+    predicted_class = (prediction > best_threshold).astype(int)
+    print(guaranteed_fraud_row)
+    print()
+    print(prediction)
+    print(predicted_class)
+    logging.info(f"Inference completed in {time.time() - start:.4f}s")

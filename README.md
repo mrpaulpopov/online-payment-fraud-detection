@@ -152,3 +152,15 @@ MLFLOW: 5001 port
 
 docker-compose up --build
 docker-compose -f docker-compose.yml -f docker-compose.gpu.yml up --build
+
+
+
+
+Схема данных:
+X, y = load_data()
+X_train, y_train = train_split()
+
+X_train_nn = pytorch_preprocessing(X_train)
+
+X_train['anomaly_score'] = anomaly_scores
+train_data = prepare_data_for_lgbm(X_train)
