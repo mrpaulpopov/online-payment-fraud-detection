@@ -1,3 +1,4 @@
+import json
 import os
 
 import mlflow
@@ -8,7 +9,7 @@ from sklearn.metrics import (
     f1_score,
     roc_auc_score,
     roc_curve,
-    average_precision_score,
+    average_precision_score, precision_recall_curve,
 )
 import time
 import pandas as pd
@@ -18,7 +19,7 @@ import numpy as np
 import shap
 import logging
 import matplotlib.pyplot as plt
-from src.paths import PLOTS_DIR
+from src.paths import PLOTS_DIR, INFERENCE_PATH
 
 
 def evaluate_and_log_metrics(model, X, y, best_threshold, target_fpr, run_id, prefix=None):
@@ -90,3 +91,42 @@ def plot_shap_values(model, X_val, run_id):
     plt.close()
     client.log_artifact(run_id, save_path, 'plots')
     logging.info("Shap summary plots saved.")
+
+
+def find_best_threshold(model, X_val, y_val, target_precision, run_id):
+    # Threshold управляет переводом из probability 0.0-1.0 в decision 0-1 (not fraud, legit / fraud, to block).
+    # С какого момента probability считается fraud?
+
+    # Это автоматический способ нахождения threshold через business target (желаемый TARGET_PRECISION)
+    client = mlflow.MlflowClient()
+    y_val_prob = model.predict(X_val, num_iteration=model.best_iteration)  # probability from 0.0 to 1.0
+    precisions, recalls, thresholds = precision_recall_curve(y_val, y_val_prob)  # 'меню' всех возможных вариантов
+
+    pr_df = pd.DataFrame({
+        'threshold': thresholds,
+        'precision': precisions[:-1],  # all but scikit last element
+        'recall': recalls[:-1]  # all but scikit last element
+    })
+
+    # Оставляем только те строки, где Precision >= моего заданного значения
+    good_precisions = pr_df[pr_df['precision'] >= target_precision]
+
+    if not good_precisions.empty:
+        # Сортируем по Recall по убыванию и берем самую первую строку (где Recall максимальный)
+        best_row = good_precisions.sort_values(by='recall', ascending=False).iloc[0]
+        best_threshold = best_row['threshold']
+        logging.info(f"Target Precision {target_precision} is reachable. Threshold: {best_threshold}")
+    else:
+        best_threshold = 0.5  # fallback
+        logging.warning("Target Precision is unreachable. Using default threshold 0.5.")
+
+    client.log_param(run_id, "best_threshold", best_threshold)
+    client.log_param(run_id, "target_precision", target_precision)  # customized parameter
+
+    # Saving best_threshold
+    # "Append" JSON: Read-Append-Write
+    inference_meta = json.loads(INFERENCE_PATH.read_text(encoding="utf-8"))
+    inference_meta["best_threshold"] = float(best_threshold)
+    INFERENCE_PATH.write_text(json.dumps(inference_meta, indent=4), encoding="utf-8")
+
+    return best_threshold
