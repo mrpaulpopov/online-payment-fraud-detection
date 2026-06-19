@@ -1,3 +1,8 @@
+business_targets:
+  "business_target_precision": 0.75  # If target_precision=0.75, it means that 75% alerts should be real, and no more than 25% should be good (angry) customers.
+  "target_fpr": 0.001
+  "threshold_strategy": "f1" # "f1" or "business"
+
 lgbm_params:
   "objective": "binary"
   "metric": ["auc", "average_precision"]
@@ -15,6 +20,14 @@ lgbm_params:
   "scale_pos_weight": 10 # penalty for error. Big value means aggressive model
   "verbose": -1
 
-business_targets:
-  "target_precision": 0.75  # If target_precision=0.75, it means that 75% alerts should be real, and no more than 25% should be good (angry) customers.
-  "target_fpr": 0.001
+pytorch_params:
+  learning_rate: 0.0005
+  batch_size: 2048
+  n_epochs: 5
+
+preprocessing:
+  high_cardinality_threshold: 100
+
+train_split:
+  train_size: 0.7
+  test_size: 0.15

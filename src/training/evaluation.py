@@ -2,6 +2,7 @@ import json
 import os
 
 import mlflow
+import seaborn as sns
 from sklearn.metrics import (
     accuracy_score,
     precision_score,
@@ -40,7 +41,7 @@ def evaluate_and_log_metrics(model, X, y, best_threshold, target_fpr, run_id, pr
     client.log_metric(run_id,f"{prefix}_recall_at_fpr", recall_at_fpr)
 
 
-def cross_validation(X_train, X_val, y_train, y_val, params, n_splits):
+def cross_validation(X_train, X_val, y_train, y_val, lgbm_params, n_splits):
     # CV based on X_train+X_val sets. X_test should not be leaked.
     logging.info('Starting CV')
     X_cv = pd.concat([X_train, X_val]).reset_index(drop=True)
@@ -61,7 +62,7 @@ def cross_validation(X_train, X_val, y_train, y_val, params, n_splits):
         val_cv_set = lgb.Dataset(X_val_fold, label=y_val_fold, reference=train_cv_set)
 
         cv_model = lgb.train(  # Temporary 'cv_model' to avoid overwriting the main trained 'model'
-            params,
+            lgbm_params,
             train_cv_set,
             num_boost_round=500,
             valid_sets=[val_cv_set],
@@ -93,11 +94,12 @@ def plot_shap_values(model, X_val, run_id):
     logging.info("Shap summary plots saved.")
 
 
-def find_best_threshold(model, X_val, y_val, target_precision, run_id):
-    # Threshold управляет переводом из probability 0.0-1.0 в decision 0-1 (not fraud, legit / fraud, to block).
-    # С какого момента probability считается fraud?
-
-    # Это автоматический способ нахождения threshold через business target (желаемый TARGET_PRECISION)
+def find_best_threshold(model, X_val, y_val, business_target_precision, threshold_strategy, run_id):
+    '''
+    Это автоматический способ нахождения threshold через business target (желаемый BUSINESS_TARGET_PRECISION)
+    Threshold управляет переводом из probability 0.0-1.0 в decision 0-1 (not fraud, legit / fraud, to block).
+    С какого момента probability считается fraud?
+    '''
     client = mlflow.MlflowClient()
     y_val_prob = model.predict(X_val, num_iteration=model.best_iteration)  # probability from 0.0 to 1.0
     precisions, recalls, thresholds = precision_recall_curve(y_val, y_val_prob)  # 'меню' всех возможных вариантов
@@ -108,25 +110,86 @@ def find_best_threshold(model, X_val, y_val, target_precision, run_id):
         'recall': recalls[:-1]  # all but scikit last element
     })
 
+    # ========================================
+    # ----------- BUSINESS TARGET ------------
+    # ========================================
+
     # Оставляем только те строки, где Precision >= моего заданного значения
-    good_precisions = pr_df[pr_df['precision'] >= target_precision]
+    good_precisions = pr_df[pr_df['precision'] >= business_target_precision]
 
     if not good_precisions.empty:
         # Сортируем по Recall по убыванию и берем самую первую строку (где Recall максимальный)
         best_row = good_precisions.sort_values(by='recall', ascending=False).iloc[0]
-        best_threshold = best_row['threshold']
-        logging.info(f"Target Precision {target_precision} is reachable. Threshold: {best_threshold}")
+        best_business_threshold = best_row['threshold']
+        logging.info(f"Target Precision {business_target_precision} is reachable. Threshold: {best_business_threshold}")
     else:
-        best_threshold = 0.5  # fallback
+        best_business_threshold = 0.5  # fallback
         logging.warning("Target Precision is unreachable. Using default threshold 0.5.")
 
-    client.log_param(run_id, "best_threshold", best_threshold)
-    client.log_param(run_id, "target_precision", target_precision)  # customized parameter
+    client.log_param(run_id, "best_business_threshold", best_business_threshold)
+    client.log_param(run_id, "business_target_precision", business_target_precision)  # customized parameter
 
-    # Saving best_threshold
-    # "Append" JSON: Read-Append-Write
+    # ========================================
+    # ----------- BEST F1-TARGET -------------
+    # ========================================
+    pr_df['f1_score'] = 2 * pr_df['precision'] * pr_df['recall'] / (pr_df['precision'] + pr_df['recall'] + 1e-08) # f1 formula
+    best_row_index = pr_df['f1_score'].idxmax()
+    best_row = pr_df.loc[best_row_index]
+
+    best_f1_threshold = best_row['threshold']
+    best_f1 = best_row['f1_score']
+    best_precision = best_row['precision']
+    best_recall = best_row['recall']
+    logging.info(f"Max F1-Score: {best_f1} achieved at threshold {best_f1_threshold}")
+    logging.info(f"Precision: {best_precision}, Recall: {best_recall}")
+    client.log_param(run_id, "best_f1_threshold", best_f1_threshold)
+
+    # ========================================
+    # --------------- PLOTS ------------------
+    # ========================================
+
+    plt.figure(figsize=(10, 6))
+    # Legit transactions
+    sns.histplot(y_val_prob[y_val == 0], color='green', label='Legit (0)', stat="density", bins=50, alpha=0.5, kde=True)
+    # Fraud transactions
+    sns.histplot(y_val_prob[y_val == 1], color='red', label='Fraud (1)', stat="density", bins=50, alpha=0.5, kde=True)
+
+    plt.axvline(best_business_threshold, color='orange', linestyle='--', label='Best Business threshold')
+    plt.axvline(best_f1_threshold, color='blue', linestyle='--', label='Best F1 threshold')
+
+    plt.title("Predicted Probability Distribution")
+    plt.xlabel("Predicted Probability of Fraud")
+    plt.ylabel("Density")
+    plt.xlim(0, 1)
+    plt.legend()
+
+    # Save to file
+    save_path = PLOTS_DIR / 'probability_distribution.png'
+    plt.savefig(save_path, bbox_inches="tight", dpi=300)
+    plt.close()
+    # Save to MLflow
+    client.log_artifact(run_id, save_path, 'plots')
+
+    # ========================================
+    # -------------- STRATEGY ----------------
+    # ========================================
+
+    if threshold_strategy == 'f1':
+        final_threshold = best_f1_threshold
+        logging.info(f"Strategy is 'f1'. Using F1 optimized threshold.")
+    elif threshold_strategy == 'business':
+        final_threshold = best_business_threshold
+        logging.info(f"Strategy is 'business'. Using Business Precision threshold.")
+    else:
+        raise ValueError(f"Unknown threshold_strategy: {threshold_strategy}")
+
+    # ========================================
+    # ---------------- JSON ------------------
+    # ========================================
+
     inference_meta = json.loads(INFERENCE_PATH.read_text(encoding="utf-8"))
-    inference_meta["best_threshold"] = float(best_threshold)
+    inference_meta["best_threshold"] = float(final_threshold)
     INFERENCE_PATH.write_text(json.dumps(inference_meta, indent=4), encoding="utf-8")
 
-    return best_threshold
+    return final_threshold
+

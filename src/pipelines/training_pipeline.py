@@ -28,30 +28,29 @@ logging.basicConfig(
 def training_pipeline():
     logging.info('Starting training pipeline')
 
-    # Loading parameters
+    # Loading config
     config = yaml.safe_load(CONFIG_PATH.read_text(encoding="utf-8"))
-    params = config["lgbm_params"]
 
-    # Initializing .json with information for inference
+    # Initializing .json with meta-information
     if not INFERENCE_PATH.exists() or INFERENCE_PATH.stat().st_size == 0:
         INFERENCE_PATH.write_text("{}", encoding="utf-8")
 
     # Loading data
     X, y = load_data(table_name='train_final_features')
-    X_train, y_train, X_val, y_val, X_test, y_test = train_split(X, y, train_size=0.7, val_size=0.15)
+    X_train, y_train, X_val, y_val, X_test, y_test = train_split(X, y, config["train_split"])
 
     del X, y
     gc.collect()
 
     # PyTorch side
-    X_train_nn, X_val_nn, X_test_nn = pytorch_preprocessing(X_train, X_val, X_test, high_cardinality_threshold=100)
+    X_train_nn, X_val_nn, X_test_nn = pytorch_preprocessing(X_train, X_val, X_test, config["preprocessing"])
     logging.info('Starting PyTorch training')
 
     # For training, we need only isFraud=0 columns
     fraud0_mask = (y_train == 0)
     X_train_nn_short = X_train_nn[fraud0_mask]
 
-    model_autoencoder = training_nn(X_train_nn_short, X_val_nn, X_test_nn, LEARNING_RATE=0.0005, BATCH_SIZE=2048, N_EPOCHS=5)
+    model_autoencoder = training_nn(X_train_nn_short, X_val_nn, X_test_nn, config["pytorch_params"])
 
     # PyTorch Inference
     train_scores = get_anomaly_scores(model_autoencoder, X_train_nn)
@@ -64,14 +63,15 @@ def training_pipeline():
 
     # LightGBM side
     logging.info('Starting LightGBM training')
-    train_data, valid_data, test_data, X_train, X_val, X_test = prepare_data_for_lgbm(X_train, X_val, X_test, y_train, y_val, y_test)
+    train_data, valid_data, test_data, X_train, X_val, X_test = prepare_data_for_lgbm(X_train, X_val, X_test, y_train,
+                                                                                      y_val, y_test)
 
     tracking_uri = os.getenv("MLFLOW_TRACKING_URI", "http://localhost:5000")
     mlflow.set_tracking_uri(tracking_uri)
     mlflow.set_experiment("fraud_detection")
     with mlflow.start_run() as run:
-        training_lgbm(train_data, valid_data, params)
-        cross_validation(X_train, X_val, y_train, y_val, params, n_splits=5)
+        training_lgbm(train_data, valid_data, config["lgbm_params"])
+        cross_validation(X_train, X_val, y_train, y_val, config["lgbm_params"], n_splits=5)
 
         # Saving Data
         X_train.assign(isFraud=y_train.values).to_parquet("train_enriched.parquet")
@@ -90,15 +90,16 @@ def training_pipeline():
     logging.info('Training pipeline finished')
 
 
-
 def evaluation_pipeline():
     logging.info('Starting evaluation pipeline')
 
     # Paths, configs
     inference_meta = json.loads(INFERENCE_PATH.read_text(encoding="utf-8"))
     run_id = inference_meta["run_id"]
+    logging.info(f'Found run_id: {run_id}')
     config = yaml.safe_load(CONFIG_PATH.read_text(encoding="utf-8"))
-    target_precision = config["business_targets"]["target_precision"]
+    business_target_precision = config["business_targets"]["business_target_precision"]
+    threshold_strategy = config["business_targets"]["threshold_strategy"]
     target_fpr = config["business_targets"]["target_fpr"]
 
     # MLflow settings
@@ -125,22 +126,21 @@ def evaluation_pipeline():
     gc.collect()
 
     # Light data preparation
-    train_data, valid_data, test_data, X_train, X_val, X_test = prepare_data_for_lgbm(X_train, X_val, X_test, y_train, y_val, y_test)
+    train_data, valid_data, test_data, X_train, X_val, X_test = prepare_data_for_lgbm(X_train, X_val, X_test, y_train,
+                                                                                      y_val, y_test)
     # Loading previously saved model
     model_lgbm = lgb.Booster(model_file=LGBM_MODEL_PATH)
 
     logging.info('Starting find_best_threshold')
-    best_threshold = find_best_threshold(model_lgbm, X_val, y_val, target_precision, run_id)
+    best_threshold = find_best_threshold(model_lgbm, X_val, y_val, business_target_precision, threshold_strategy,
+                                         run_id)
     logging.info('Starting evaluate train')
     evaluate_and_log_metrics(model_lgbm, X_train, y_train, best_threshold, target_fpr, run_id, prefix='train')
     logging.info('Starting evaluate val')
     evaluate_and_log_metrics(model_lgbm, X_val, y_val, best_threshold, target_fpr, run_id, prefix='val')
-    evaluate_and_log_metrics(model_lgbm, X_test, y_test, best_threshold, target_fpr, run_id, prefix='test') # Test
+    evaluate_and_log_metrics(model_lgbm, X_test, y_test, best_threshold, target_fpr, run_id, prefix='test')  # Test
 
     plot_shap_values(model_lgbm, X_val, run_id)
-
-
-
 
 # mlflow ui
 # http://127.0.0.1:5001

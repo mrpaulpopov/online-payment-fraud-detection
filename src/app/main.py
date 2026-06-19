@@ -28,6 +28,6 @@ logging.basicConfig(
 # uvicorn src.app.main:app --reload
 
 
-# training_pipeline()
-# evaluation_pipeline()
-inference_pipeline()
+training_pipeline()
+evaluation_pipeline()
+# inference_pipeline()

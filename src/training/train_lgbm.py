@@ -19,11 +19,11 @@ def prepare_data_for_lgbm(X_train, X_val, X_test, y_train, y_val, y_test):
     return train_data, valid_data, test_data, X_train, X_val, X_test
 
 
-def training_lgbm(train_data, valid_data, params):
+def training_lgbm(train_data, valid_data, lgbm_params):
     start = time.time()
-    model = lightgbm_model(train_data, valid_data, params)
+    model = lightgbm_model(train_data, valid_data, lgbm_params)
 
-    mlflow.log_params(params)  # logging hyperparameters
+    mlflow.log_params(lgbm_params)  # logging hyperparameters
     mlflow.lightgbm.log_model(model, name="model")
     mlflow.log_metric("best_iteration", model.best_iteration)
     logging.info(f"Training completed in {time.time() - start:.4f}s")

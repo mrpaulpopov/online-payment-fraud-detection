@@ -16,8 +16,9 @@ from src.models.autoencoder import autoencoder_nn
 from src.paths import IMPUTER_SCALER_PATH
 
 
-def pytorch_preprocessing(X_train, X_val, X_test, high_cardinality_threshold):
+def pytorch_preprocessing(X_train, X_val, X_test, config):
     logging.info('Starting PyTorch preprocessing')
+    high_cardinality_threshold = config["high_cardinality_threshold"]
 
     # Train columns as a gold standard
     num_cols = X_train.select_dtypes(include=['number']).columns
@@ -215,9 +216,14 @@ def train_nn_loop(model, train_loader, val_loader, test_loader, optimizer, loss_
     logging.info(f"Model saved to {NN_MODEL_PATH}")
 
 
-def training_nn(X_train, X_val, X_test, LEARNING_RATE, BATCH_SIZE, N_EPOCHS):
+def training_nn(X_train, X_val, X_test, pytorch_params):
     # Dimensions
     input_dim = X_train.shape[1]
+
+    # Reading Config
+    learning_rate = pytorch_params["learning_rate"]
+    batch_size = pytorch_params["batch_size"]
+    n_epochs = pytorch_params["n_epochs"]
 
     # Saving input_dim
     # "Append" JSON: Read-Append-Write
@@ -227,14 +233,14 @@ def training_nn(X_train, X_val, X_test, LEARNING_RATE, BATCH_SIZE, N_EPOCHS):
 
     model = autoencoder_nn(input_dim)
 
-    optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
+    optimizer = optim.Adam(model.parameters(), lr=learning_rate)
     loss_fn = nn.MSELoss()
 
-    train_loader = build_dataloader(X_train, BATCH_SIZE)
-    val_loader = build_dataloader(X_val, BATCH_SIZE)
-    test_loader = build_dataloader(X_test, BATCH_SIZE)
+    train_loader = build_dataloader(X_train, batch_size)
+    val_loader = build_dataloader(X_val, batch_size)
+    test_loader = build_dataloader(X_test, batch_size)
 
-    train_nn_loop(model, train_loader, val_loader, test_loader, optimizer, loss_fn, N_EPOCHS)
+    train_nn_loop(model, train_loader, val_loader, test_loader, optimizer, loss_fn, n_epochs)
     return model
 
 
