@@ -6,6 +6,7 @@ import logging
 
 # from src.pipelines.training_pipeline import training_pipeline
 from src.pipelines.inference_pipeline import inference_pipeline
+from src.pipelines.kaggle_pipeline import kaggle_pipeline
 from src.pipelines.training_pipeline import training_pipeline, evaluation_pipeline
 
 logging.basicConfig(
@@ -28,6 +29,7 @@ logging.basicConfig(
 # uvicorn src.app.main:app --reload
 
 
-training_pipeline()
-evaluation_pipeline()
+# training_pipeline()
+# evaluation_pipeline()
 # inference_pipeline()
+kaggle_pipeline()

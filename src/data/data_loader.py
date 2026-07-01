@@ -40,6 +40,10 @@ def load_data(table_name):
     else:
         y = None
 
+    if "TransactionID" in df.columns:
+        transaction_ids = df["TransactionID"]
+    else:
+        transaction_ids = None
 
     # 2. Drop useless columns
     X = df.drop(columns=["isFraud", "TransactionID", "TransactionDT", #
@@ -52,4 +56,4 @@ def load_data(table_name):
     X[float64_cols] = X[float64_cols].astype('float32')
     logging.info(f"{table_name}: loading completed in {time.time() - start:.4f}s")
     # print(X.isnull().mean().sort_values(ascending=False)) # Analyze almost useless columns
-    return X, y
+    return X, y, transaction_ids

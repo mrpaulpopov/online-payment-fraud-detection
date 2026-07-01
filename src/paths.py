@@ -9,5 +9,7 @@ LGBM_MODEL_PATH = Path("models/lgbm_model.txt")
 NN_MODEL_PATH = Path("models/nn_model.pt")
 IMPUTER_SCALER_PATH = Path("models/imputerscaler.pkl")
 
+CACHE_DIR = Path("models/datasets")
+CACHE_DIR.mkdir(parents=True, exist_ok=True)
 PLOTS_DIR = Path("docs/plots")
 PLOTS_DIR.mkdir(parents=True, exist_ok=True)

@@ -1,29 +1,34 @@
+pipeline:
+  use_autoencoder: True
+
 business_targets:
   "business_target_precision": 0.75  # If target_precision=0.75, it means that 75% alerts should be real, and no more than 25% should be good (angry) customers.
   "target_fpr": 0.001
-  "threshold_strategy": "f1" # "f1" or "business"
+  "threshold_strategy": "f1"    # "f1", "business"
 
 lgbm_params:
   "objective": "binary"
   "metric": ["auc", "average_precision"]
   "boosting_type": "gbdt"
-  "learning_rate": 0.03
-  "num_leaves": 31
-  "max_depth": 7  # -1 means it has no limits, it could memorize identities
-  "feature_fraction": 0.7  # fraction features used per tree (0.4 to 0.7)
-  "bagging_fraction": 0.8
-  "bagging_freq": 5
-  "lambda_l1": 0.5
-  "lambda_l2": 0.5
-  "min_data_in_leaf": 50  # anti overfitting and memorization (50-100)
-  "is_unbalance": False
-  "scale_pos_weight": 10 # penalty for error. Big value means aggressive model
+  "learning_rate": 0.07308155218896   # from HPO
+  "num_leaves": 36                 # from HPO
+  "max_depth": 6                   # from HPO # -1 means it has no limits, it could memorize identities
+  "feature_fraction": 0.592444726907   # from HPO
+  "bagging_fraction": 0.761012991294   # from HPO
+  "bagging_freq": 5                 # from HPO
+  "min_gain_to_split": 0.76014646375 # from HPO
+  "lambda_l1": 0.3575782827       # from HPO
+  "lambda_l2": 3.0075599047387 # from HPO
+  "min_data_in_leaf": 100           # from HPO
+  "scale_pos_weight": 1.93139122796545 # from HPO # penalty for error. Big value means aggressive model
   "verbose": -1
 
 pytorch_params:
-  learning_rate: 0.0005
-  batch_size: 2048
-  n_epochs: 5
+  latent_dim: 48                # from HPO
+  learning_rate: 4.9817291e-05  # from HPO
+  batch_size: 2048              # from HPO
+  n_epochs: 150                 # from HPO
+  overwrite_existing_model: False
 
 preprocessing:
   high_cardinality_threshold: 100

@@ -7,10 +7,12 @@ FROM train_transaction t
 LEFT JOIN train_identity i
 USING ("TransactionID");
 
--- ==========================================
--- ---------- FINGERPRINTING USERS ----------
--- ----- 4 ways to recreate 'user_id' -------
--- ==========================================
+-- ==============================================================
+-- ------------------- FINGERPRINTING USERS ---------------------
+-- -------------- 4 ways to recreate 'user_id' ------------------
+-- ---- (it turned out to be a bad idea: models tended ----------
+-- ------------------- to seriously overfit ---------------------
+-- ==============================================================
 
 -- uid1 = card1
 ALTER TABLE train_transaction_features
@@ -20,45 +22,45 @@ UPDATE train_transaction_features
 SET uid1 = COALESCE(card1::text, 'missing');
 
 
--- uid2 = card1 + card2
-ALTER TABLE train_transaction_features
-ADD COLUMN uid2 text;
-
-UPDATE train_transaction_features
-SET uid2 =
-    COALESCE(card1::text, 'missing') ||
-    '_' ||
-    COALESCE(card2::text, 'missing');
-
-
--- uid3 = card1 + card2 + addr1 + P_emaildomain
-ALTER TABLE train_transaction_features
-ADD COLUMN uid3 text;
-
-UPDATE train_transaction_features
-SET uid3 =
-    COALESCE(card1::text, 'missing') ||
-    '_' ||
-    COALESCE(card2::text, 'missing') ||
-    '_' ||
-    COALESCE(addr1::text, 'missing') ||
-    '_' ||
-    COALESCE("P_emaildomain"::text, 'missing');
-
-
--- uid4 = card1 + card2 + addr1 + DeviceInfo
-ALTER TABLE train_transaction_features
-ADD COLUMN uid4 text;
-
-UPDATE train_transaction_features
-SET uid4 =
-    COALESCE(card1::text, 'missing') ||
-    '_' ||
-    COALESCE(card2::text, 'missing') ||
-    '_' ||
-    COALESCE(addr1::text, 'missing') ||
-    '_' ||
-    COALESCE("DeviceInfo"::text, 'missing');
+-- -- uid2 = card1 + card2
+-- ALTER TABLE train_transaction_features
+-- ADD COLUMN uid2 text;
+--
+-- UPDATE train_transaction_features
+-- SET uid2 =
+--     COALESCE(card1::text, 'missing') ||
+--     '_' ||
+--     COALESCE(card2::text, 'missing');
+--
+--
+-- -- uid3 = card1 + card2 + addr1 + P_emaildomain
+-- ALTER TABLE train_transaction_features
+-- ADD COLUMN uid3 text;
+--
+-- UPDATE train_transaction_features
+-- SET uid3 =
+--     COALESCE(card1::text, 'missing') ||
+--     '_' ||
+--     COALESCE(card2::text, 'missing') ||
+--     '_' ||
+--     COALESCE(addr1::text, 'missing') ||
+--     '_' ||
+--     COALESCE("P_emaildomain"::text, 'missing');
+--
+--
+-- -- uid4 = card1 + card2 + addr1 + DeviceInfo
+-- ALTER TABLE train_transaction_features
+-- ADD COLUMN uid4 text;
+--
+-- UPDATE train_transaction_features
+-- SET uid4 =
+--     COALESCE(card1::text, 'missing') ||
+--     '_' ||
+--     COALESCE(card2::text, 'missing') ||
+--     '_' ||
+--     COALESCE(addr1::text, 'missing') ||
+--     '_' ||
+--     COALESCE("DeviceInfo"::text, 'missing');
 
 -- ==========================================
 -- ------ Time features (window-based) ------
@@ -72,9 +74,6 @@ SELECT
     "DeviceInfo",
     "DeviceType",
     "uid1",
-    "uid2",
-    "uid3",
-    "uid4",
 
     COUNT(*) OVER (
         PARTITION BY uid1 -- 1. GROUP BY uid1

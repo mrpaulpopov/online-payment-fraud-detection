@@ -8,6 +8,6 @@ def lightgbm_model(train_data, valid_data, params):
         num_boost_round=3000,  # 1000-3000
         valid_sets=[train_data, valid_data],
         valid_names=["train", "valid"],
-        callbacks=[lgb.early_stopping(50)]
+        callbacks=[lgb.early_stopping(100)]
     )
     return model

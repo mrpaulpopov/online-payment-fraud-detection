@@ -1,7 +1,7 @@
 from torch import nn
 
 
-def autoencoder_nn(input_dim):
+def autoencoder_nn(input_dim, latent_dim):
     model = nn.Sequential(
         # Encode
         nn.Linear(input_dim, 1024),
@@ -10,7 +10,12 @@ def autoencoder_nn(input_dim):
         nn.Linear(1024, 512),
         nn.BatchNorm1d(512),
         nn.ReLU(),
+        nn.Linear(512, latent_dim),
+        nn.ReLU(),
         # Decode
+        nn.Linear(latent_dim, 512),
+        nn.BatchNorm1d(512),
+        nn.ReLU(),
         nn.Linear(512, 1024),
         nn.BatchNorm1d(1024),
         nn.ReLU(),

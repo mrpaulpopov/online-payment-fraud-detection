@@ -29,16 +29,16 @@ def evaluate_and_log_metrics(model, X, y, best_threshold, target_fpr, run_id, pr
     y_prob = model.predict(X, num_iteration=model.best_iteration)  # probability from 0.0 to 1.0
     y_pred = (y_prob > best_threshold).astype(int)  # astype(int) converts False/True to 0/1
 
-    mlflow.log_metric(f"{prefix}_accuracy", accuracy_score(y, y_pred))  # useless
-    mlflow.log_metric(f"{prefix}_precision", precision_score(y, y_pred))
-    mlflow.log_metric(f"{prefix}_recall", recall_score(y, y_pred))
-    mlflow.log_metric(f"{prefix}_f1", f1_score(y, y_pred))  # important
-    mlflow.log_metric(f"{prefix}_roc_auc", roc_auc_score(y, y_prob))  # important
-    mlflow.log_metric(f"{prefix}_pr_auc", average_precision_score(y, y_prob))  # important
+    client.log_metric(run_id,f"lgbm_{prefix}_accuracy", accuracy_score(y, y_pred))  # useless
+    client.log_metric(run_id,f"lgbm_{prefix}_precision", precision_score(y, y_pred))
+    client.log_metric(run_id,f"lgbm_{prefix}_recall", recall_score(y, y_pred))
+    client.log_metric(run_id,f"lgbm_{prefix}_f1", f1_score(y, y_pred))  # important
+    client.log_metric(run_id,f"lgbm_{prefix}_roc_auc", roc_auc_score(y, y_prob))  # important
+    client.log_metric(run_id,f"lgbm_{prefix}_pr_auc", average_precision_score(y, y_prob))  # important
 
     fpr, tpr, _ = roc_curve(y, y_prob)
     recall_at_fpr = max(tpr[fpr <= target_fpr])
-    client.log_metric(run_id,f"{prefix}_recall_at_fpr", recall_at_fpr)
+    client.log_metric(run_id,f"lgbm_{prefix}_recall_at_fpr", recall_at_fpr)
 
 
 def cross_validation(X_train, X_val, y_train, y_val, lgbm_params, n_splits):
@@ -74,14 +74,14 @@ def cross_validation(X_train, X_val, y_train, y_val, lgbm_params, n_splits):
         preds = cv_model.predict(X_val_fold, num_iteration=cv_model.best_iteration)
         scores.append(average_precision_score(y_val_fold, preds))
 
-    mlflow.log_metric("cv_pr_auc",
+    mlflow.log_metric("lgbm_cv_pr_auc",
                       np.mean(scores))  # CV result averaged over 5 folds; provides a credible performance estimate.
     logging.info(f"CV completed in {time.time() - start:.4f}s")
 
 
 def plot_shap_values(model, X_val, run_id):
-    client = mlflow.MlflowClient()
     logging.info('Starting plot_shap_values')
+    client = mlflow.MlflowClient()
     explainer = shap.TreeExplainer(model)
     shap_values = explainer(X_val)
 
@@ -100,6 +100,8 @@ def find_best_threshold(model, X_val, y_val, business_target_precision, threshol
     Threshold управляет переводом из probability 0.0-1.0 в decision 0-1 (not fraud, legit / fraud, to block).
     С какого момента probability считается fraud?
     '''
+    logging.info('Starting find_best_threshold')
+
     client = mlflow.MlflowClient()
     y_val_prob = model.predict(X_val, num_iteration=model.best_iteration)  # probability from 0.0 to 1.0
     precisions, recalls, thresholds = precision_recall_curve(y_val, y_val_prob)  # 'меню' всех возможных вариантов
@@ -121,13 +123,12 @@ def find_best_threshold(model, X_val, y_val, business_target_precision, threshol
         # Сортируем по Recall по убыванию и берем самую первую строку (где Recall максимальный)
         best_row = good_precisions.sort_values(by='recall', ascending=False).iloc[0]
         best_business_threshold = best_row['threshold']
-        logging.info(f"Target Precision {business_target_precision} is reachable. Threshold: {best_business_threshold}")
+        logging.info(f"Business Target Precision {business_target_precision} achieved at threshold: {best_business_threshold}")
     else:
         best_business_threshold = 0.5  # fallback
-        logging.warning("Target Precision is unreachable. Using default threshold 0.5.")
+        logging.warning("Business Target Precision is unreachable. Using default threshold 0.5.")
 
     client.log_param(run_id, "best_business_threshold", best_business_threshold)
-    client.log_param(run_id, "business_target_precision", business_target_precision)  # customized parameter
 
     # ========================================
     # ----------- BEST F1-TARGET -------------
@@ -140,8 +141,8 @@ def find_best_threshold(model, X_val, y_val, business_target_precision, threshol
     best_f1 = best_row['f1_score']
     best_precision = best_row['precision']
     best_recall = best_row['recall']
-    logging.info(f"Max F1-Score: {best_f1} achieved at threshold {best_f1_threshold}")
-    logging.info(f"Precision: {best_precision}, Recall: {best_recall}")
+    logging.info(f"Max F1-Score {best_f1} achieved at threshold {best_f1_threshold}")
+    logging.info(f"(Precision: {best_precision}, Recall: {best_recall})")
     client.log_param(run_id, "best_f1_threshold", best_f1_threshold)
 
     # ========================================
@@ -176,10 +177,10 @@ def find_best_threshold(model, X_val, y_val, business_target_precision, threshol
 
     if threshold_strategy == 'f1':
         final_threshold = best_f1_threshold
-        logging.info(f"Strategy is 'f1'. Using F1 optimized threshold.")
+        logging.info(f"Strategy is 'f1'. Using F1 optimized threshold {final_threshold}.")
     elif threshold_strategy == 'business':
         final_threshold = best_business_threshold
-        logging.info(f"Strategy is 'business'. Using Business Precision threshold.")
+        logging.info(f"Strategy is 'business'. Using Business Precision threshold {final_threshold}.")
     else:
         raise ValueError(f"Unknown threshold_strategy: {threshold_strategy}")
 

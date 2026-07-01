@@ -1,153 +1,148 @@
 import gc
 import json
 import logging
-import os
-import pickle
+import copy
 
 import numpy as np
-import pandas as pd
+import optuna
 import torch
-from sklearn.impute import SimpleImputer
-from sklearn.preprocessing import StandardScaler
+from optuna.testing import trials
 from torch import nn, optim
 from torch.utils.data import TensorDataset, DataLoader
 from src.paths import NN_MODEL_PATH, INFERENCE_PATH
 from src.models.autoencoder import autoencoder_nn
-from src.paths import IMPUTER_SCALER_PATH
+from src.training.nn_utils import EarlyStopping, build_dataloader
 
 
-def pytorch_preprocessing(X_train, X_val, X_test, config):
-    logging.info('Starting PyTorch preprocessing')
-    high_cardinality_threshold = config["high_cardinality_threshold"]
-
-    # Train columns as a gold standard
-    num_cols = X_train.select_dtypes(include=['number']).columns
-    all_str_cols = X_train.select_dtypes(include=['object', 'string', 'category']).columns
-
-    # --- ФИЛЬТР КАРДИНАЛЬНОСТИ (СПАСАЕТ RAM) ---
-    str_cols = []
-    for col in all_str_cols:
-        # Оставляем только те колонки, где меньше N уникальных значений
-        if X_train[col].nunique() < high_cardinality_threshold:
-            str_cols.append(col)
-
-    logging.info(f"Dropped high cardinality cols: {set(all_str_cols) - set(str_cols)}")
-
-    # STRING COLUMNS: OHE
-    str_train_data = X_train[str_cols].astype('string').fillna('missing')
-    str_train_df = pd.get_dummies(str_train_data, dummy_na=False, dtype='float32')
-    del str_train_data
-    gc.collect()
-
-    str_val_data = X_val[str_cols].astype('string').fillna('missing')
-    str_val_df = pd.get_dummies(str_val_data, dummy_na=False, dtype='float32')
-    del str_val_data
-    gc.collect()
-
-    str_test_data = X_test[str_cols].astype('string').fillna('missing')
-    str_test_df = pd.get_dummies(str_test_data, dummy_na=False, dtype='float32')
-    del str_test_data
-    gc.collect()
-
-    # In case of different val and test columns...
-    str_val_df = str_val_df.reindex(columns=str_train_df.columns, fill_value=0).astype('float32')
-    str_test_df = str_test_df.reindex(columns=str_train_df.columns, fill_value=0).astype('float32')
-
-
-
-    # NUMERIC COLUMNS: Z-SCORE
-    num_imputer = SimpleImputer(strategy='mean')
-    scaler = StandardScaler()
-
-    num_train_data = num_imputer.fit_transform(X_train[num_cols])
-    num_train_data = scaler.fit_transform(num_train_data).astype('float32')
-    num_train_df = pd.DataFrame(num_train_data, columns=num_cols, index=X_train.index)
-
-    del num_train_data
-    gc.collect()
-
-    # Saving for inference
-    with IMPUTER_SCALER_PATH.open('wb') as f:
-        pickle.dump({'imputer': num_imputer, 'scaler': scaler}, f)
-    logging.info(f'Imputer and Scaler was saved to {IMPUTER_SCALER_PATH}')
-
-    num_val_data = num_imputer.transform(X_val[num_cols])
-    num_val_data = scaler.transform(num_val_data).astype('float32')
-    num_val_df = pd.DataFrame(num_val_data, columns=num_cols, index=X_val.index)
-
-    del num_val_data
-    gc.collect()
-
-    num_test_data = num_imputer.transform(X_test[num_cols])
-    num_test_data = scaler.transform(num_test_data).astype('float32')
-    num_test_df = pd.DataFrame(num_test_data, columns=num_cols, index=X_test.index)
-
-    del num_test_data
-    gc.collect()
-
-    result_train = pd.concat([str_train_df, num_train_df], axis=1)
-    del str_train_df, num_train_df
-    gc.collect()
-
-    result_val = pd.concat([str_val_df, num_val_df], axis=1)
-    del str_val_df, num_val_df
-    gc.collect()
-
-    result_test = pd.concat([str_test_df, num_test_df], axis=1)
-    del str_test_df, num_test_df
-    gc.collect()
-
-    # Saving columns information for inference
-    inference_meta = json.loads(INFERENCE_PATH.read_text(encoding="utf-8"))
-    inference_meta["pytorch_features"] = {
-        "num_cols": num_cols.tolist(),  # pandas indexes to list
-        "str_cols": str_cols,  # is already list
-        "all_str_cols": all_str_cols.tolist(),
-        "original_features": X_train.columns.tolist(),
-        "final_pytorch_features": result_train.columns.tolist(),
-    }
-    INFERENCE_PATH.write_text(json.dumps(inference_meta, indent=4), encoding="utf-8")
-    logging.info('PyTorch preprocessing finished and metadata saved')
-
-    return result_train, result_val, result_test
-
-
-def build_dataloader(X_data, batch_size):  # function is used for both train and val data
-    X_data_t = torch.tensor(X_data.to_numpy(), dtype=torch.float32)
-    dataset = TensorDataset(X_data_t, X_data_t)  # AutoEncoder
-    return DataLoader(dataset, batch_size=batch_size, shuffle=True)
-
-
-
-def train_nn_loop(model, train_loader, val_loader, test_loader, optimizer, loss_fn, N_EPOCHS):
+def train_nn_loop(model, train_loader, val_loader, test_loader, optimizer, loss_fn, N_EPOCHS, pytorch_params, trial=None):
+    '''
+    Child function of training_nn.
+    '''
+    overwrite_existing_model = pytorch_params["overwrite_existing_model"]
     DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model.to(DEVICE)
     logging.info(f"Starting training on {DEVICE}")
 
-    for epoch in range(N_EPOCHS):
-        model.train()
-        total_loss = 0
-        for X_train_batch, target_batch in train_loader:
-            X_train_batch = X_train_batch.to(DEVICE)
-            target_batch = target_batch.to(DEVICE)
+    val_loss = None # protection for return
+    early_stopping = EarlyStopping(patience=5)
+    best_model_weights = copy.deepcopy(model.state_dict())
 
-            preds = model(X_train_batch)
+    if not NN_MODEL_PATH.exists() or overwrite_existing_model:
+        for epoch in range(N_EPOCHS):
+            model.train()
+            total_loss = 0
+            for X_train_batch, target_batch in train_loader:
+                X_train_batch = X_train_batch.to(DEVICE)
+                target_batch = target_batch.to(DEVICE)
 
-            loss = loss_fn(preds, target_batch)  # FORWARD pass
+                preds = model(X_train_batch)
 
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
+                loss = loss_fn(preds, target_batch)  # FORWARD pass
 
-            total_loss += loss.item()  # sum of losses.
-        train_loss = total_loss / len(train_loader)  # 'normalized' loss
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
 
-        # ===== VALIDATION =====
+                total_loss += loss.item()  # sum of losses.
+            train_loss = total_loss / len(train_loader)  # 'normalized' loss
+
+            # ===== VALIDATION =====
+            model.eval()
+            val_loss_sum = 0
+            val_sq_err_sum = 0
+            val_abs_err_sum = 0
+            total_val_elements = 0
+
+            with torch.no_grad():
+                for X_val_batch, target_batch in val_loader:
+                    X_val_batch = X_val_batch.to(DEVICE)
+                    target_batch = target_batch.to(DEVICE)
+
+                    preds = model(X_val_batch)
+                    loss = loss_fn(preds, target_batch)
+
+                    val_loss_sum += loss.item()
+
+                    # Считаем сумму ошибок на лету (сохраняем только одно число .item())
+                    val_sq_err_sum += torch.sum((preds - target_batch) ** 2).item()
+                    val_abs_err_sum += torch.sum(torch.abs(preds - target_batch)).item()
+                    total_val_elements += target_batch.numel()  # Общее количество чисел в батче
+
+            val_loss = val_loss_sum / len(val_loader)
+            rmse = np.sqrt(val_sq_err_sum / total_val_elements)
+            mae = val_abs_err_sum / total_val_elements
+
+            logging.info(
+                f"Epoch {epoch + 1}/{N_EPOCHS} | "
+                f"train_loss={train_loss:.4f} | "
+                f"val_loss={val_loss:.4f} | "
+                f"val_rmse={rmse:.4f} | "
+                f"val_mae={mae:.4f}"
+            )
+            # =================================
+            # --------- OPTUNA PRUNING --------
+            # =================================
+            if trial is not None:
+                trial.report(val_loss, epoch)
+                if trial.should_prune():
+                    logging.info(f"Trial pruned at epoch {epoch+1}!")
+                    raise optuna.TrialPruned()
+
+            # =================================
+            # --------- EARLY STOPPING --------
+            # =================================
+            if early_stopping.best_loss is None or val_loss < early_stopping.best_loss:
+                best_model_weights = copy.deepcopy(model.state_dict()) # copy weights only if new val_loss is lower
+            early_stopping(val_loss)
+            if early_stopping.early_stop:
+                logging.info(f'Early stopping. Stop training')
+                break
+
+        gc.collect()
+        model.load_state_dict(best_model_weights)
+        val_loss = early_stopping.best_loss
+
+        logging.info('Starting evaluation on Test set')
+        model.eval()
+        test_loss_sum = 0
+        test_sq_err_sum = 0
+        test_abs_err_sum = 0
+        total_test_elements = 0
+        with torch.no_grad():
+            for X_test_batch, target_batch in test_loader:
+                X_test_batch = X_test_batch.to(DEVICE)
+                target_batch = target_batch.to(DEVICE)
+
+                preds = model(X_test_batch)
+                loss = loss_fn(preds, target_batch)
+
+                test_loss_sum += loss.item()
+
+                test_sq_err_sum += torch.sum((preds - target_batch) ** 2).item()
+                test_abs_err_sum += torch.sum(torch.abs(preds - target_batch)).item()
+                total_test_elements += target_batch.numel()
+
+        if len(test_loader) > 0:
+            test_loss = test_loss_sum / len(test_loader)
+            test_rmse = np.sqrt(test_sq_err_sum / total_test_elements)
+            test_mae = test_abs_err_sum / total_test_elements
+
+            print("-" * 50)
+            print(
+                f"FINAL TEST METRICS | "
+                f"test_loss={test_loss:.4f} | "
+                f"test_rmse={test_rmse:.4f} | "
+                f"test_mae={test_mae:.4f}"
+            )
+            print("-" * 50)
+
+        torch.save(model.state_dict(), NN_MODEL_PATH)
+        logging.info(f"Model saved to {NN_MODEL_PATH}")
+    else:
+        logging.info(f"Loading existing model from {NN_MODEL_PATH}")
+        model.load_state_dict(torch.load(NN_MODEL_PATH, map_location=DEVICE, weights_only=True))
         model.eval()
         val_loss_sum = 0
-        val_sq_err_sum = 0
-        val_abs_err_sum = 0
-        total_val_elements = 0
 
         with torch.no_grad():
             for X_val_batch, target_batch in val_loader:
@@ -156,82 +151,34 @@ def train_nn_loop(model, train_loader, val_loader, test_loader, optimizer, loss_
 
                 preds = model(X_val_batch)
                 loss = loss_fn(preds, target_batch)
-
                 val_loss_sum += loss.item()
 
-                # Считаем сумму ошибок на лету (сохраняем только одно число .item())
-                val_sq_err_sum += torch.sum((preds - target_batch) ** 2).item()
-                val_abs_err_sum += torch.sum(torch.abs(preds - target_batch)).item()
-                total_val_elements += target_batch.numel()  # Общее количество чисел в батче
-
         val_loss = val_loss_sum / len(val_loader)
-        rmse = np.sqrt(val_sq_err_sum / total_val_elements)
-        mae = val_abs_err_sum / total_val_elements
-
-        print(
-            f"Epoch {epoch + 1}/{N_EPOCHS} | "
-            f"train_loss={train_loss:.4f} | "
-            f"val_loss={val_loss:.4f} | "
-            f"val_rmse={rmse:.4f} | "
-            f"val_mae={mae:.4f}"
-        )
-
-    gc.collect()
-    logging.info('Starting evaluation on Test set')
-
-    model.eval()
-    test_loss_sum = 0
-    test_sq_err_sum = 0
-    test_abs_err_sum = 0
-    total_test_elements = 0
-    with torch.no_grad():
-        for X_test_batch, target_batch in test_loader:
-            X_test_batch = X_test_batch.to(DEVICE)
-            target_batch = target_batch.to(DEVICE)
-
-            preds = model(X_test_batch)
-            loss = loss_fn(preds, target_batch)
-
-            test_loss_sum += loss.item()
-
-            test_sq_err_sum += torch.sum((preds - target_batch) ** 2).item()
-            test_abs_err_sum += torch.sum(torch.abs(preds - target_batch)).item()
-            total_test_elements += target_batch.numel()
-
-    if len(test_loader) > 0:
-        test_loss = test_loss_sum / len(test_loader)
-        test_rmse = np.sqrt(test_sq_err_sum / total_test_elements)
-        test_mae = test_abs_err_sum / total_test_elements
-
-        print("-" * 50)
-        print(
-            f"FINAL TEST METRICS | "
-            f"test_loss={test_loss:.4f} | "
-            f"test_rmse={test_rmse:.4f} | "
-            f"test_mae={test_mae:.4f}"
-        )
-        print("-" * 50)
-
-    torch.save(model.state_dict(), NN_MODEL_PATH)
-    logging.info(f"Model saved to {NN_MODEL_PATH}")
+        logging.info(f"Loaded model val_loss={val_loss:.4f}")
+    return val_loss
 
 
-def training_nn(X_train, X_val, X_test, pytorch_params):
+def training_nn(X_train, X_val, X_test, pytorch_params, trial=None):
+    '''
+    Entry point for PyTorch training.
+    '''
     # Dimensions
     input_dim = X_train.shape[1]
 
     # Reading Config
+    latent_dim = pytorch_params["latent_dim"]
     learning_rate = pytorch_params["learning_rate"]
     batch_size = pytorch_params["batch_size"]
     n_epochs = pytorch_params["n_epochs"]
 
-    # Saving input_dim
+    # Saving input_dim and latent_dim
     # "Append" JSON: Read-Append-Write
     inference_meta = json.loads(INFERENCE_PATH.read_text(encoding="utf-8"))
     inference_meta["input_dim"] = int(input_dim)
+    inference_meta["latent_dim"] = int(latent_dim)
     INFERENCE_PATH.write_text(json.dumps(inference_meta, indent=4), encoding="utf-8")
 
-    model = autoencoder_nn(input_dim)
+    model = autoencoder_nn(input_dim, latent_dim)
 
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
     loss_fn = nn.MSELoss()
@@ -240,17 +187,17 @@ def training_nn(X_train, X_val, X_test, pytorch_params):
     val_loader = build_dataloader(X_val, batch_size)
     test_loader = build_dataloader(X_test, batch_size)
 
-    train_nn_loop(model, train_loader, val_loader, test_loader, optimizer, loss_fn, n_epochs)
-    return model
+    val_loss = train_nn_loop(model, train_loader, val_loader, test_loader, optimizer, loss_fn, n_epochs, pytorch_params, trial=trial)
+    return model, val_loss
 
 
-def get_anomaly_scores(model, X_processed, batch_size=1024):
+def pytorch_anomaly_scores(model, X_processed, batch_size=1024):
+    '''
+    Inference function.
+    '''
     device = next(model.parameters()).device  # get first element of the iterator (parameters of the model)
-    X_t = torch.tensor(X_processed.to_numpy(), dtype=torch.float32)
 
-    # DataLoader
-    dataset = TensorDataset(X_t)
-    loader = DataLoader(dataset, batch_size=batch_size, shuffle=False)  # shuffle should be False during the inference
+    loader = build_dataloader(X_processed, batch_size, inference=True)
 
     model.eval()
     scores = []
@@ -267,10 +214,3 @@ def get_anomaly_scores(model, X_processed, batch_size=1024):
     return np.array(scores)
 
 
-def assign_anomaly_scores(X_train, X_val, X_test, train_scores, val_scores, test_scores):
-    X_train = X_train.copy()
-    X_val = X_val.copy()
-    X_train['anomaly_score'] = train_scores
-    X_val['anomaly_score'] = val_scores
-    X_test['anomaly_score'] = test_scores
-    return X_train, X_val, X_test

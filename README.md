@@ -1,44 +1,173 @@
 ### IEEE-CIS Fraud Detection
-Запускать просто как  
-`docker compose up -d`
 
-Что в проекте:
-SQL
-LightGBM
-Метрики
-SHAP values
-MLflow
+## Project Overview & Architecture
+Online Payment Fraud Detection
 
-1. Парсинг csv, создаю код для создания таблиц с множеством столбцов. 
-2. Из созданного кода создаю таблицы, затем делаю COPY из csv.
-3. Объединяем train_transaction и train_identity по TransactionID.
-4. FEATURE ENGINEERING: Т.к. нет единого user_id, его нужно предположительно воссоздать. Это делается 4 разными подходами uid. Теперь каждая транзакция подписана разными uid:
-- uid1 = card1
-- uid2 = card1 + card2
-- uid3 = card1 + card2 + addr1 + P_emaildomain
-- uid4 = card1 + card2 + addr1 + DeviceInfo
-- Однако это было моей ошибкой, так как модель начала обучаться строго на uid. Я оставил только uid1.
-5. Делаю агрегаты по uid1. Чтобы избежать data leakage (не делать подсчет средних значений по будущим значениям для транзакции), то я делаю rolling-window агрегаты, от первого появления до текущей.
-6. Делаю несколько BEHAVIORAL ASSUMPTIONS: 
-- число транзакций за последние 5 минут (и другие временные промежутки)
-- time since last transaction
-- amount from last hour
-- ratio amount/average transaction per user
-- time since last geo change
-- novelty of the device (for each mobile and desktop type)
-7. I'm loading final_features table into Pandas and doing slight preprocessing (drop columns with null ratio > 90%, sort by transaction time).
-8. Train test split: time-based split was used to prevent temporal leakage
-9. LightGBM: модель показывает огромный feature importance для uid3 и uid4. Я попробовал их убрать и посмотреть результат.
+## Technical Stack
+- Infrastructure: Docker Compose, PostgreSQL, FastAPI
+- ML: PyTorch, LightGBM
+- MLOps & Tracking: MLflow, Optuna
+
+## Data Pipeline & Feature Engineering
+```
+src/scripts/create_table_script.py
+db/01_schema.sql
+db/02_seed.sql
+db/03_train_features.sql, db/04_test_features.sql
+```
+
+First of all, I copied columns information from .csv, then copied all data from .csv to sql-tables. I combined train_transaction и train_identity tables by TransactionID.
+My first behavioral assumption was: card1 = unique user id, uid1.
+I tried also to fingerprint users as uid2 = card1_card2, uid3 = card1_card2_addr1, uid4 = card1_card2_addr1_Pemaildomain.
+But it leaded to extreme models overfitting.
+
+Then I made the aggregates by uid1 with rolling-windows.
+! For prevent data leakage, I made the aggregates with rolling-windows: from the first occurrence to the current.
+
+### Behavioral Assumptions
+I made a few behavioral assumptions, the aggregates based on uid1:
+- Count of transactions for the last 5m, 1h, 24h, 7d,
+- Time since last transaction,
+- Amount of transactions for the last hour,
+- Ratio amount/average transaction per user,
+- Time since last geo change,
+- Novelty of the device, for each mobile and desktop type.
+Then I did slight preprocessing in Pandas (dropped columns with (null ratio > 90%), sorted by transaction time).
+
+Train test split: time-based split was used to prevent temporal leakage.
+
+### Simplified data flow schema
+```
+X, y = load_data()
+X_train, y_train = train_split()
+X_train_nn = pytorch_preprocessing(X_train)
+X_train['anomaly_score'] = anomaly_scores
+train_data = prepare_data_for_lgbm(X_train)
+```
+
+## Modeling: Autoencoder + LightGBM
+My baseline model was LightGBM. However, to help him find anomaly patterns in transactions, I made unsupervised method
+of autoencoding in PyTorch. It returns a new column `anomaly_score`, and then LightGBM train with it.
+#### Autoencoder
+I used bottleneck method with customizable `latent_dim` (the narrowest part).
+
+#### LightGBM
+
+## MLOps & Hyperparameter Tuning
+I made hyperparameters optimization in this order:
+1. PyTorch HPO. I found the best hyperparameters for PyTorch Autoencoder.
+2. LightGBM HPO. I found the best hyperparameters for LightGBM WITH anomaly_scores taken from optimized Autoencoder.
+3. I found
+4. Comparison of metrics between PyTorch+LightGBM and LightGBM only
+
+## Threshold Optimization (Math vs. Business)
+
+### Mathematical Threshold
+
+### Business-driven threshold
+
+## Model Evaluation, SHAP
+PR-AUC
+Key final metrics:
+lgbm_cv_pr_auc
+0.7307300546504649
+-
+lgbm_train_precision
+0.9081603435934145
+-
+lgbm_train_recall
+0.8726784977300867
+-
+lgbm_train_f1
+0.8900659464010102
+-
+lgbm_train_pr_auc
+0.940838526180892
+-
+lgbm_train_recall_at_fpr
+0.8199889943596093
+-
+lgbm_val_accuracy
+0.9745204953658234
+-
+lgbm_val_precision
+0.6696930393428447
+-
+lgbm_val_recall
+0.5092044707429323
+-
+lgbm_val_f1
+0.5785247432306256
+-
+lgbm_val_roc_auc
+0.9285942436920803
+-
+lgbm_val_pr_auc
+0.6082407997366494
+-
+lgbm_val_recall_at_fpr
+0.3136094674556213
+-
+lgbm_test_accuracy
+0.9692033280274551
+-
+lgbm_test_precision
+0.5689320388349515
+-
+lgbm_test_recall
+0.4751865066493675
+-
+lgbm_test_f1
+0.5178508306822198
+-
+lgbm_test_pr_auc
+0.5435352678310291
+-
+lgbm_test_recall_at_fpr
+0.2403503081414207
+-
+
+## API
+
+## How to Run (Docker & GPU)
+```
+docker compose up -d --build training
+docker logs -f fraud_training
 
 
-Итоговая схема таблиц:
-transaction_features
-    ↓
-uid4_features (aggregates over history)
-    ↓
-uid4_time_features (rolling windows)
-    ↓
-final_train_dataset (JOIN all)
+docker compose down
+docker-compose up -d --build
+
+docker compose stop training
+```
+
+#### GPU launch
+`docker-compose -f docker-compose.yml -f docker-compose.gpu.yml up --build`
+
+#### MLflow interface
+`localhost:5001/#/experiments/1/runs`
+
+#### Optuna hyperparameters optimization
+```
+docker-compose run --rm training python src/scripts/tune_pytorch_script.py
+docker-compose run --rm training python src/scripts/tune_lgbm_script.py
+```
+
+## Kaggle Results
+This project is based on the Kaggle IEEE-CIS Fraud Detection dataset. The model achieved a score of **0.795067** on the public leaderboard.
+However, the primary focus of this project was not to win the Kaggle competition, but to build a complete, production-ready MLOps pipeline.
+
+## Limitations, Known Issues
+#### macOS: SIGSEGV when running LightGBM after PyTorch
+
+On macOS, PyTorch and LightGBM both ship their own OpenMP runtime (`libomp`),
+which causes a segfault when both are used in the same process.
+
+My first solution was to limit `num_threads=1` for LightGBM on macOS, which disables the conflicting OpenMP initialization.
+However, I decided to not allow to launch this project locally, only Docker (Linux) runs allowed with full multi-threading.
+
+#### Hyperparameter tuning assumption
+In the ideal case, I should have done LightGBM HPO both before adding anomaly_scores and after it. 
 
 
 
@@ -98,42 +227,11 @@ P_emaildomain - да, валидный признак: модель опреде
 
 
 
-AUTOENCODER
-
-Pytorch: У меня единый пайплайн обучения и инференса, поэтому после обучения в pytorch модель из оперативной памяти
-сразу же используется. Она дополнительно сохраняется в файл, впрочем
-
-
-To prevent OpenMP threading conflicts on macOS and ensure stable CPU usage during the pipeline execution,
-the maximum number of threads for LightGBM is explicity limited in config.yaml.
-
-## Known Issues
-**macOS: SIGSEGV when running LightGBM after PyTorch**
-
-On macOS, PyTorch and LightGBM both ship their own OpenMP runtime (`libomp`),
-which causes a segfault when both are used in the same process.
-
-The pipeline automatically sets `num_threads=1` for LightGBM on macOS,
-which disables the conflicting OpenMP initialization. Training will be
-slower locally, but Docker (Linux) runs with full multi-threading.
-
-## Known Issues
-
-**macOS: SIGSEGV when running LightGBM after PyTorch**
-
-On macOS, PyTorch and LightGBM both ship their own OpenMP runtime (`libomp`),
-which causes a segfault when both are used in the same process.
-
-The pipeline automatically sets `num_threads=1` for LightGBM on macOS,
-which disables the conflicting OpenMP initialization. Training will be
-slower locally, but Docker (Linux) runs with full multi-threading.
-
-SHAP summary plot is also skipped on macOS for the same reason.
-All visualizations are available when running via Docker.
 
 
 
-MLFLOW: 5001 port
+
+
 
 Чему я научился новому?
 1. Высокое заполнение ram, поэтому периодическое ручное удаление тяжелых элементов и gc.collect. High cardinality. Конвертация float64-float32. Отслеживание потребляемого RAM
@@ -148,22 +246,3 @@ MLFLOW: 5001 port
 10. Autoencoder (nn на основе самой себя)
 11. Анализ SHAP
 12. Динамический Dockerfile (с override)
-
-
-docker-compose up --build
-docker-compose -f docker-compose.yml -f docker-compose.gpu.yml up --build
-
-
-
-
-Схема данных:
-X, y = load_data()
-X_train, y_train = train_split()
-
-X_train_nn = pytorch_preprocessing(X_train)
-
-X_train['anomaly_score'] = anomaly_scores
-train_data = prepare_data_for_lgbm(X_train)
-
-
-localhost:5001/#/experiments/1/runs

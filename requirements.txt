@@ -22,3 +22,6 @@ torch~=2.12.0
 scikit-learn~=1.8.0
 mlflow-skinny~=3.12.0
 seaborn~=0.13.2
+optuna~=4.9.0
+sympy~=1.14.0
+optuna-integration

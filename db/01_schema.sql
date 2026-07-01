@@ -1,11 +1,11 @@
--- Firstly, I copy .csv files into container:
+-- Firstly, I copied .csv files into container:
 
 -- docker cp data/test_identity.csv my_postgres:/test_identity.csv
 -- docker cp data/test_transaction.csv my_postgres:/test_transaction.csv
 -- docker cp data/train_identity.csv my_postgres:/train_identity.csv
 -- docker cp data/train_transaction.csv my_postgres:/train_transaction.csv
 
--- Then, I create postgresql-container:
+-- Then I created postgresql-container:
 -- docker run --name my-postgres \
 -- -e POSTGRES_USER=user \
 -- -e POSTGRES_PASSWORD=password \

@@ -1,3 +1,4 @@
+import gc
 import pickle
 import lightgbm as lgb
 from sympy.stats.rv import probability
@@ -15,7 +16,8 @@ from src.paths import NN_MODEL_PATH
 import torch.nn.functional as F
 import logging
 
-def inference_pipeline():
+def kaggle_pipeline():
+    logging.info('Starting Kaggle-inference pipeline')
     start = time.time()
 
     # Read JSON
@@ -35,51 +37,77 @@ def inference_pipeline():
     num_imputer = imp_object['imputer']
     scaler = imp_object['scaler']
 
-    df_new_nn = pd.DataFrame([new_data])
-    df_new_lgmb = df_new_nn.copy()
+    # --------------------------------------
+    # --------- Reading Test table ---------
+    # --------------------------------------
+
+    X_test, _, kaggle_ids = load_data(table_name='test_final_features')
+
+    df_nn = pd.DataFrame(X_test)
+    df_lgmb = df_nn.copy()
 
     # --------------------------------
     # --------- PyTorch Side ---------
     # --------------------------------
+    logging.info('Starting PyTorch side')
+
     model = autoencoder_nn(input_dim, latent_dim)
     model.load_state_dict(torch.load(NN_MODEL_PATH, weights_only=True))
     model.eval()
 
     # NUMERIC COLUMNS: Z-SCORE
-    df_new_nn[num_cols] = num_imputer.transform(df_new_nn[num_cols]) # transforming nulls to mean
-    df_new_nn[num_cols] = scaler.transform(df_new_nn[num_cols]) # z-score
-    num_df = df_new_nn[num_cols].astype('float32')
+    df_nn[num_cols] = num_imputer.transform(df_nn[num_cols]) # transforming nulls to mean
+    df_nn[num_cols] = scaler.transform(df_nn[num_cols]) # z-score
+    num_df = df_nn[num_cols].astype('float32')
 
     # STRING COLUMNS: OHE
-    df_new_nn[str_cols] = df_new_nn[str_cols].astype('string').fillna('missing')
-    str_df = pd.get_dummies(df_new_nn[str_cols], dummy_na=False, dtype='float32')
+    df_nn[str_cols] = df_nn[str_cols].astype('string').fillna('missing')
+    str_df = pd.get_dummies(df_nn[str_cols], dummy_na=False, dtype='float32')
 
-    df_new_nn = pd.concat([num_df, str_df], axis=1)
-    df_new_nn = df_new_nn.reindex(columns=final_pytorch_features, fill_value=0).astype('float32')
+    df_nn = pd.concat([num_df, str_df], axis=1)
+    df_nn = df_nn.reindex(columns=final_pytorch_features, fill_value=0).astype('float32')
 
     with torch.no_grad():
-        tensor_data = torch.tensor(df_new_nn.values)
+        tensor_data = torch.tensor(df_nn.values)
         prediction = model(tensor_data)
         anomaly_score = F.mse_loss(prediction, tensor_data).item()
+
+    del df_nn, str_df, num_df
+    gc.collect()
+
 
     # --------------------------------
     # ----------- LGBM Side ----------
     # --------------------------------
+    logging.info('Starting LGBM side')
 
     model_lgbm = lgb.Booster(model_file=LGBM_MODEL_PATH)
-    df_new_lgmb = df_new_lgmb.reindex(columns=original_features, fill_value=0)
-    df_new_lgmb['anomaly_score'] = anomaly_score
+    df_lgmb = df_lgmb.reindex(columns=original_features, fill_value=0)
+    df_lgmb['anomaly_score'] = anomaly_score
 
-
-    for col in df_new_lgmb.columns:
+    for col in df_lgmb.columns:
         if col in lgbm_str_cols:
-            df_new_lgmb[col] = df_new_lgmb[col].astype('str').astype('category')
+            df_lgmb[col] = df_lgmb[col].astype('str').astype('category')
         else:
-            df_new_lgmb[col] = pd.to_numeric(df_new_lgmb[col], errors='coerce')
+            df_lgmb[col] = pd.to_numeric(df_lgmb[col], errors='coerce')
+
+    # # Check columns
+    # extra_columns = set(df_lgmb.columns) - set(model_lgbm.feature_name())
+    # print(f"Checking extra columns: {extra_columns}")
 
 
-    pred_proba = model_lgbm.predict(df_new_lgmb)
+    pred_proba = model_lgbm.predict(df_lgmb)
     pred_class = (pred_proba > best_threshold).astype(int)
-    logging.info(f"Probability: {pred_proba}")
-    logging.info(f"Predicted class: {pred_class}")
-    logging.info(f"Inference completed in {time.time() - start:.4f}s")
+
+    # --------------------------------
+    # ----------- Export -------------
+    # --------------------------------
+    logging.info('Starting Export')
+
+    submission = pd.DataFrame({
+        'TransactionID': kaggle_ids,
+        'isFraud': pred_class
+    })
+    submission.to_csv('my_submission.csv', index=False)
+
+    logging.info(f"Kaggle inference completed in {time.time() - start:.4f}s")

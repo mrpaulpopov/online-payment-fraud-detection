@@ -52,6 +52,7 @@ services:
       - POSTGRES_HOST=db # overriding .env-file
       - MLFLOW_TRACKING_URI=http://mlflow:5000
     volumes:
+      - .:/app
       - ./docs/plots:/app/docs/plots
       - ./models:/app/models
       - mlflow_artifacts:/mlruns
