@@ -5,10 +5,8 @@ services:
     shm_size: '2gb'
     restart: always
     command: postgres -c max_wal_size=10GB -c checkpoint_timeout=10min -c work_mem=256MB -c maintenance_work_mem=512MB # increase 'RAM' for each operation up to 10GB, do not cache on disk too often.
-    environment:
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: bankdb
+    env_file:
+      - .env
     ports:
       - "5432:5432"
     volumes:
@@ -43,19 +41,36 @@ services:
     build:
       context: .
     container_name: fraud_training
+    command: python -m src.pipelines.training_pipeline
     depends_on:
       db:
         condition: service_healthy # checks that it's not only started, but is also ready
       mlflow:
         condition: service_healthy
     environment:
-      - POSTGRES_HOST=db # overriding .env-file
+#      - POSTGRES_HOST=db # overriding .env
       - MLFLOW_TRACKING_URI=http://mlflow:5000
     volumes:
       - .:/app
       - ./docs/plots:/app/docs/plots
       - ./models:/app/models
       - mlflow_artifacts:/mlruns
+
+  api-service:
+    build:
+      context: .
+    command: uvicorn src.app.main:app --host 0.0.0.0 --port 8000
+    env_file:
+      - .env
+    environment:
+      POSTGRES_HOST: db # overriding .env
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./models:/app/models
+    depends_on:
+      training:
+        condition: service_completed_successfully
 
 volumes:
   pg_data:

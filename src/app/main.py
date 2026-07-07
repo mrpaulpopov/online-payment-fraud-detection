@@ -1,13 +1,16 @@
-# from fastapi import FastAPI
-# from src.app.routers import predict_endpoint
+import json
 import logging
-# import lightgbm as lgb
-# import json
+import pickle
+from contextlib import asynccontextmanager
 
-# from src.pipelines.training_pipeline import training_pipeline
-from src.pipelines.inference_pipeline import inference_pipeline
-from src.pipelines.kaggle_pipeline import kaggle_pipeline
-from src.pipelines.training_pipeline import training_pipeline, evaluation_pipeline
+import lightgbm as lgb
+import torch
+from fastapi import FastAPI
+
+from src.app.routers import router
+from src.models.autoencoder import autoencoder_nn
+from src.paths import IMPUTER_SCALER_PATH, LGBM_MODEL_PATH, INFERENCE_PATH, NN_MODEL_PATH
+
 
 logging.basicConfig(
     level=logging.INFO,
@@ -15,21 +18,47 @@ logging.basicConfig(
 )
 
 
-# # Load model from file
-# fraud_model = lgb.Booster(model_file='models/lgbm_model.txt')
-# with open('models/inference_meta.json', 'r') as f:
-#     inference_meta = json.load(f)
-#     best_threshold = inference_meta['best_threshold']
-# logging.info("Model loaded.")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    logging.info("Starting up: Loading ML models...")
+    try:
+        # Read JSON
+        inference_meta = json.loads(INFERENCE_PATH.read_text(encoding="utf-8"))
+        input_dim = inference_meta["input_dim"]
+        latent_dim = inference_meta["latent_dim"]
 
-# app = FastAPI()
-#
-# app.include_router(predict_endpoint.router)
+        # Read Imputer, Scaler
+        with IMPUTER_SCALER_PATH.open('rb') as f:
+            imp_object = pickle.load(f)
+        num_imputer = imp_object['imputer']
+        scaler = imp_object['scaler']
 
-# uvicorn src.app.main:app --reload
+        # --------- PyTorch Side ---------
+        model_pytorch = autoencoder_nn(input_dim, latent_dim)
+        model_pytorch.load_state_dict(torch.load(NN_MODEL_PATH, weights_only=True))
+        model_pytorch.eval()
+
+        # ----------- LGBM Side ----------
+        model_lgbm = lgb.Booster(model_file=LGBM_MODEL_PATH)
 
 
-# training_pipeline()
-# evaluation_pipeline()
-# inference_pipeline()
-kaggle_pipeline()
+        app.state.model_lgbm = model_lgbm
+        app.state.num_imputer = num_imputer
+        app.state.scaler = scaler
+        app.state.model_pytorch = model_pytorch
+        app.state.inference_meta = inference_meta
+
+        logging.info("Models loaded successfully!")
+    except Exception as e:
+        logging.error(f"Failed to load models during startup: {e}")
+        raise e
+    yield
+    logging.info("Shutting down: Flushing memory...")
+    app.state.model_lgbm = None
+    app.state.num_imputer = None
+    app.state.scaler = None
+    app.state.model_pytorch = None
+    app.state.inference_meta = None
+
+app = FastAPI(title="Fraud Detection API", lifespan=lifespan)
+app.include_router(router)

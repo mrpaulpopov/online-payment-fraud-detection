@@ -25,3 +25,4 @@ seaborn~=0.13.2
 optuna~=4.9.0
 sympy~=1.14.0
 optuna-integration
+asyncpg

@@ -18,7 +18,6 @@ def train_nn_loop(model, train_loader, val_loader, test_loader, optimizer, loss_
     '''
     Child function of training_nn.
     '''
-    overwrite_existing_model = pytorch_params["overwrite_existing_model"]
     DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model.to(DEVICE)
     logging.info(f"Starting training on {DEVICE}")
@@ -27,122 +26,30 @@ def train_nn_loop(model, train_loader, val_loader, test_loader, optimizer, loss_
     early_stopping = EarlyStopping(patience=5)
     best_model_weights = copy.deepcopy(model.state_dict())
 
-    if not NN_MODEL_PATH.exists() or overwrite_existing_model:
-        for epoch in range(N_EPOCHS):
-            model.train()
-            total_loss = 0
-            for X_train_batch, target_batch in train_loader:
-                X_train_batch = X_train_batch.to(DEVICE)
-                target_batch = target_batch.to(DEVICE)
+    for epoch in range(N_EPOCHS):
+        model.train()
+        total_loss = 0
+        for X_train_batch, target_batch in train_loader:
+            X_train_batch = X_train_batch.to(DEVICE)
+            target_batch = target_batch.to(DEVICE)
 
-                preds = model(X_train_batch)
+            preds = model(X_train_batch)
 
-                loss = loss_fn(preds, target_batch)  # FORWARD pass
+            loss = loss_fn(preds, target_batch)  # FORWARD pass
 
-                optimizer.zero_grad()
-                loss.backward()
-                optimizer.step()
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
 
-                total_loss += loss.item()  # sum of losses.
-            train_loss = total_loss / len(train_loader)  # 'normalized' loss
+            total_loss += loss.item()  # sum of losses.
+        train_loss = total_loss / len(train_loader)  # 'normalized' loss
 
-            # ===== VALIDATION =====
-            model.eval()
-            val_loss_sum = 0
-            val_sq_err_sum = 0
-            val_abs_err_sum = 0
-            total_val_elements = 0
-
-            with torch.no_grad():
-                for X_val_batch, target_batch in val_loader:
-                    X_val_batch = X_val_batch.to(DEVICE)
-                    target_batch = target_batch.to(DEVICE)
-
-                    preds = model(X_val_batch)
-                    loss = loss_fn(preds, target_batch)
-
-                    val_loss_sum += loss.item()
-
-                    # Считаем сумму ошибок на лету (сохраняем только одно число .item())
-                    val_sq_err_sum += torch.sum((preds - target_batch) ** 2).item()
-                    val_abs_err_sum += torch.sum(torch.abs(preds - target_batch)).item()
-                    total_val_elements += target_batch.numel()  # Общее количество чисел в батче
-
-            val_loss = val_loss_sum / len(val_loader)
-            rmse = np.sqrt(val_sq_err_sum / total_val_elements)
-            mae = val_abs_err_sum / total_val_elements
-
-            logging.info(
-                f"Epoch {epoch + 1}/{N_EPOCHS} | "
-                f"train_loss={train_loss:.4f} | "
-                f"val_loss={val_loss:.4f} | "
-                f"val_rmse={rmse:.4f} | "
-                f"val_mae={mae:.4f}"
-            )
-            # =================================
-            # --------- OPTUNA PRUNING --------
-            # =================================
-            if trial is not None:
-                trial.report(val_loss, epoch)
-                if trial.should_prune():
-                    logging.info(f"Trial pruned at epoch {epoch+1}!")
-                    raise optuna.TrialPruned()
-
-            # =================================
-            # --------- EARLY STOPPING --------
-            # =================================
-            if early_stopping.best_loss is None or val_loss < early_stopping.best_loss:
-                best_model_weights = copy.deepcopy(model.state_dict()) # copy weights only if new val_loss is lower
-            early_stopping(val_loss)
-            if early_stopping.early_stop:
-                logging.info(f'Early stopping. Stop training')
-                break
-
-        gc.collect()
-        model.load_state_dict(best_model_weights)
-        val_loss = early_stopping.best_loss
-
-        logging.info('Starting evaluation on Test set')
-        model.eval()
-        test_loss_sum = 0
-        test_sq_err_sum = 0
-        test_abs_err_sum = 0
-        total_test_elements = 0
-        with torch.no_grad():
-            for X_test_batch, target_batch in test_loader:
-                X_test_batch = X_test_batch.to(DEVICE)
-                target_batch = target_batch.to(DEVICE)
-
-                preds = model(X_test_batch)
-                loss = loss_fn(preds, target_batch)
-
-                test_loss_sum += loss.item()
-
-                test_sq_err_sum += torch.sum((preds - target_batch) ** 2).item()
-                test_abs_err_sum += torch.sum(torch.abs(preds - target_batch)).item()
-                total_test_elements += target_batch.numel()
-
-        if len(test_loader) > 0:
-            test_loss = test_loss_sum / len(test_loader)
-            test_rmse = np.sqrt(test_sq_err_sum / total_test_elements)
-            test_mae = test_abs_err_sum / total_test_elements
-
-            print("-" * 50)
-            print(
-                f"FINAL TEST METRICS | "
-                f"test_loss={test_loss:.4f} | "
-                f"test_rmse={test_rmse:.4f} | "
-                f"test_mae={test_mae:.4f}"
-            )
-            print("-" * 50)
-
-        torch.save(model.state_dict(), NN_MODEL_PATH)
-        logging.info(f"Model saved to {NN_MODEL_PATH}")
-    else:
-        logging.info(f"Loading existing model from {NN_MODEL_PATH}")
-        model.load_state_dict(torch.load(NN_MODEL_PATH, map_location=DEVICE, weights_only=True))
+        # ===== VALIDATION =====
         model.eval()
         val_loss_sum = 0
+        val_sq_err_sum = 0
+        val_abs_err_sum = 0
+        total_val_elements = 0
 
         with torch.no_grad():
             for X_val_batch, target_batch in val_loader:
@@ -151,10 +58,84 @@ def train_nn_loop(model, train_loader, val_loader, test_loader, optimizer, loss_
 
                 preds = model(X_val_batch)
                 loss = loss_fn(preds, target_batch)
+
                 val_loss_sum += loss.item()
 
+                # Считаем сумму ошибок на лету (сохраняем только одно число .item())
+                val_sq_err_sum += torch.sum((preds - target_batch) ** 2).item()
+                val_abs_err_sum += torch.sum(torch.abs(preds - target_batch)).item()
+                total_val_elements += target_batch.numel()  # Общее количество чисел в батче
+
         val_loss = val_loss_sum / len(val_loader)
-        logging.info(f"Loaded model val_loss={val_loss:.4f}")
+        rmse = np.sqrt(val_sq_err_sum / total_val_elements)
+        mae = val_abs_err_sum / total_val_elements
+
+        logging.info(
+            f"Epoch {epoch + 1}/{N_EPOCHS} | "
+            f"train_loss={train_loss:.4f} | "
+            f"val_loss={val_loss:.4f} | "
+            f"val_rmse={rmse:.4f} | "
+            f"val_mae={mae:.4f}"
+        )
+        # =================================
+        # --------- OPTUNA PRUNING --------
+        # =================================
+        if trial is not None:
+            trial.report(val_loss, epoch)
+            if trial.should_prune():
+                logging.info(f"Trial pruned at epoch {epoch+1}!")
+                raise optuna.TrialPruned()
+
+        # =================================
+        # --------- EARLY STOPPING --------
+        # =================================
+        if early_stopping.best_loss is None or val_loss < early_stopping.best_loss:
+            best_model_weights = copy.deepcopy(model.state_dict()) # copy weights only if new val_loss is lower
+        early_stopping(val_loss)
+        if early_stopping.early_stop:
+            logging.info(f'Early stopping. Stop training')
+            break
+
+    gc.collect()
+    model.load_state_dict(best_model_weights)
+    val_loss = early_stopping.best_loss
+
+    logging.info('Starting evaluation on Test set')
+    model.eval()
+    test_loss_sum = 0
+    test_sq_err_sum = 0
+    test_abs_err_sum = 0
+    total_test_elements = 0
+    with torch.no_grad():
+        for X_test_batch, target_batch in test_loader:
+            X_test_batch = X_test_batch.to(DEVICE)
+            target_batch = target_batch.to(DEVICE)
+
+            preds = model(X_test_batch)
+            loss = loss_fn(preds, target_batch)
+
+            test_loss_sum += loss.item()
+
+            test_sq_err_sum += torch.sum((preds - target_batch) ** 2).item()
+            test_abs_err_sum += torch.sum(torch.abs(preds - target_batch)).item()
+            total_test_elements += target_batch.numel()
+
+    if len(test_loader) > 0:
+        test_loss = test_loss_sum / len(test_loader)
+        test_rmse = np.sqrt(test_sq_err_sum / total_test_elements)
+        test_mae = test_abs_err_sum / total_test_elements
+
+        print("-" * 50)
+        print(
+            f"FINAL TEST METRICS | "
+            f"test_loss={test_loss:.4f} | "
+            f"test_rmse={test_rmse:.4f} | "
+            f"test_mae={test_mae:.4f}"
+        )
+        print("-" * 50)
+
+    torch.save(model.state_dict(), NN_MODEL_PATH)
+    logging.info(f"Model saved to {NN_MODEL_PATH}")
     return val_loss
 
 

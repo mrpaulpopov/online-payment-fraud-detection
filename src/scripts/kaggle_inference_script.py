@@ -16,7 +16,12 @@ from src.paths import NN_MODEL_PATH
 import torch.nn.functional as F
 import logging
 
-def kaggle_pipeline():
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s | %(levelname)s | %(message)s"
+)
+
+def main():
     logging.info('Starting Kaggle-inference pipeline')
     start = time.time()
 
@@ -111,3 +116,6 @@ def kaggle_pipeline():
     submission.to_csv('my_submission.csv', index=False)
 
     logging.info(f"Kaggle inference completed in {time.time() - start:.4f}s")
+
+if __name__ == '__main__':
+    main()

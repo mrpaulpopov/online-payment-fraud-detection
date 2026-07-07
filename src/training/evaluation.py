@@ -94,7 +94,7 @@ def plot_shap_values(model, X_val, run_id):
     logging.info("Shap summary plots saved.")
 
 
-def find_best_threshold(model, X_val, y_val, business_target_precision, threshold_strategy, run_id):
+def find_best_threshold(model, X_val, y_val, business_fp_target, threshold_strategy, run_id):
     '''
     Это автоматический способ нахождения threshold через business target (желаемый BUSINESS_TARGET_PRECISION)
     Threshold управляет переводом из probability 0.0-1.0 в decision 0-1 (not fraud, legit / fraud, to block).
@@ -113,37 +113,37 @@ def find_best_threshold(model, X_val, y_val, business_target_precision, threshol
     })
 
     # ========================================
+    # ----------- BEST F1-TARGET -------------
+    # ========================================
+
+    pr_df['f1_score'] = 2 * pr_df['precision'] * pr_df['recall'] / (pr_df['precision'] + pr_df['recall'] + 1e-08) # f1 formula
+    best_row_index = pr_df['f1_score'].idxmax()
+    best_row = pr_df.loc[best_row_index]
+
+    best_f1_threshold = best_row['threshold']
+    logging.info(f"Max F1-Score achieved at threshold {best_f1_threshold}")
+    client.log_param(run_id, "best_f1_threshold", best_f1_threshold)
+
+    # ========================================
     # ----------- BUSINESS TARGET ------------
     # ========================================
 
     # Оставляем только те строки, где Precision >= моего заданного значения
+    business_target_precision = (1 - business_fp_target)
     good_precisions = pr_df[pr_df['precision'] >= business_target_precision]
 
     if not good_precisions.empty:
         # Сортируем по Recall по убыванию и берем самую первую строку (где Recall максимальный)
         best_row = good_precisions.sort_values(by='recall', ascending=False).iloc[0]
         best_business_threshold = best_row['threshold']
-        logging.info(f"Business Target Precision {business_target_precision} achieved at threshold: {best_business_threshold}")
+        logging.info(
+            f"Business Target Precision {business_target_precision} achieved at threshold: {best_business_threshold}")
     else:
-        best_business_threshold = 0.5  # fallback
-        logging.warning("Business Target Precision is unreachable. Using default threshold 0.5.")
+        best_business_threshold = best_f1_threshold  # fallback
+        logging.warning("Business Target Precision is unreachable. Using best f1 threshold.")
 
     client.log_param(run_id, "best_business_threshold", best_business_threshold)
 
-    # ========================================
-    # ----------- BEST F1-TARGET -------------
-    # ========================================
-    pr_df['f1_score'] = 2 * pr_df['precision'] * pr_df['recall'] / (pr_df['precision'] + pr_df['recall'] + 1e-08) # f1 formula
-    best_row_index = pr_df['f1_score'].idxmax()
-    best_row = pr_df.loc[best_row_index]
-
-    best_f1_threshold = best_row['threshold']
-    best_f1 = best_row['f1_score']
-    best_precision = best_row['precision']
-    best_recall = best_row['recall']
-    logging.info(f"Max F1-Score {best_f1} achieved at threshold {best_f1_threshold}")
-    logging.info(f"(Precision: {best_precision}, Recall: {best_recall})")
-    client.log_param(run_id, "best_f1_threshold", best_f1_threshold)
 
     # ========================================
     # --------------- PLOTS ------------------

@@ -1,7 +1,12 @@
-from src.ml.predict import predict_user_items
+import json
+import time
+from fastapi import APIRouter, Depends, HTTPException, Response, status, Request
+
+import yaml
 from fastapi import HTTPException
 import logging
-
+from src.paths import INFERENCE_PATH
+from src.pipelines.inference_pipeline import inference_pipeline
 
 
 def apply_business_rules(transaction):
@@ -11,17 +16,29 @@ def apply_business_rules(transaction):
     return None, "Pass to ML"
 
 
-def process_payment(transaction):
-    rule_decision, rule_reason = apply_business_rules(transaction)
+def process_payment(input_transaction, inference_meta, num_imputer, scaler, model_lgbm, model_pytorch):
+
+    fraud_probability = None
+    is_fraud = None
+    rule_decision, rule_reason = apply_business_rules(input_transaction)
 
     if rule_decision is True:
-        return "Fraud (Blocked by Rules)"
+        action = f"Fraud (Blocked by Rules: {rule_reason})"
+        # return transaction_id, fraud_probability, is_fraud, action # TODO
 
+    # features = extract_features(transaction) # TODO
 
-    features = extract_features(transaction)
-    prob = fraud_model.predict(features)[0]
+    fraud_probability, is_fraud = inference_pipeline(input_transaction, # TODO
+                                                     inference_meta=request.app.inference_meta,
+                                                     num_imputer=request.app.state.num_imputer,
+                                                     scaler=request.app.state.scaler,
+                                                     model_lgbm=request.app.state.model_lgbm,
+                                                     model_pytorch=request.app.state.model_pytorch)
 
-    if prob > best_threshold:
-        return f"Fraud (Blocked by ML, confidence: {prob})"
+    if is_fraud:
+        action = f"Fraud (Blocked by ML, confidence: {fraud_probability})"
     else:
-        return "Legit (Passed ML)"
+        action = "Legit (Passed ML)"
+
+    # return transaction_id, fraud_probability, is_fraud, action # TODO
+    return fraud_probability, is_fraud, action

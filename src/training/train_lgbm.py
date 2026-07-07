@@ -29,6 +29,6 @@ def training_lgbm(train_data, valid_data, lgbm_params):
 
     model.save_model(LGBM_MODEL_PATH, num_iteration=model.best_iteration)
     logging.info(f"Model saved to {LGBM_MODEL_PATH}")
-    return
+    return model
 
 

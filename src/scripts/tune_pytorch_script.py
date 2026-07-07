@@ -40,7 +40,6 @@ def objective(trial):
             "learning_rate": learning_rate,
             "batch_size": batch_size,
             "n_epochs": 50,
-            "overwrite_existing_model": True
         }
         mlflow.log_params(trial_params)
 

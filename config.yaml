@@ -1,8 +1,9 @@
 pipeline:
   use_autoencoder: True
+  force_retrain: False
 
 business_targets:
-  "business_target_precision": 0.75  # If target_precision=0.75, it means that 75% alerts should be real, and no more than 25% should be good (angry) customers.
+  "business_fp_target": 0.25    # Business False Positive Target
   "target_fpr": 0.001
   "threshold_strategy": "f1"    # "f1", "business"
 
@@ -28,7 +29,6 @@ pytorch_params:
   learning_rate: 4.9817291e-05  # from HPO
   batch_size: 2048              # from HPO
   n_epochs: 150                 # from HPO
-  overwrite_existing_model: False
 
 preprocessing:
   high_cardinality_threshold: 100

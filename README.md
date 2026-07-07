@@ -51,20 +51,22 @@ of autoencoding in PyTorch. It returns a new column `anomaly_score`, and then Li
 #### Autoencoder
 I used bottleneck method with customizable `latent_dim` (the narrowest part).
 
-#### LightGBM
-
 ## MLOps & Hyperparameter Tuning
-I made hyperparameters optimization in this order:
-1. PyTorch HPO. I found the best hyperparameters for PyTorch Autoencoder.
-2. LightGBM HPO. I found the best hyperparameters for LightGBM WITH anomaly_scores taken from optimized Autoencoder.
-3. I found
-4. Comparison of metrics between PyTorch+LightGBM and LightGBM only
+I made hyperparameters optimization in that order:
+1. PyTorch HPO. I found the best hyperparameters for PyTorch Autoencoder (including `latent_dim`)
+2. LightGBM HPO. I found the best hyperparameters for LightGBM with anomaly_scores taken from already optimized PyTorch Autoencoder.
+3. I made a comparison of metrics between PyTorch+LightGBM and LightGBM only (baseline pipeline).
 
 ## Threshold Optimization (Math vs. Business)
+Threshold converts a probability to a boolean prediction. Using `precision_recall_curve`, I developed the two approaches to find it:
+### Business-driven threshold
+Business says: 'You detect fraud. We want that no more than 25% should be false alerts, because they are good customers
+who will definitely be angry and call us.' - 
+
+However, if business target is unreachable, mathematical threshold will be used as a fallback.
 
 ### Mathematical Threshold
 
-### Business-driven threshold
 
 ## Model Evaluation, SHAP
 PR-AUC
@@ -147,15 +149,24 @@ docker compose stop training
 #### MLflow interface
 `localhost:5001/#/experiments/1/runs`
 
+#### FastAPI interface
+`localhost:8000`
+
 #### Optuna hyperparameters optimization
 ```
 docker-compose run --rm training python src/scripts/tune_pytorch_script.py
 docker-compose run --rm training python src/scripts/tune_lgbm_script.py
 ```
 
+#### Tune evaluation standalone  script
+```
+docker-compose run --rm training python -m src.scripts.tune_evaluation_script
+```
+
 ## Kaggle Results
-This project is based on the Kaggle IEEE-CIS Fraud Detection dataset. The model achieved a score of **0.795067** on the public leaderboard.
-However, the primary focus of this project was not to win the Kaggle competition, but to build a complete, production-ready MLOps pipeline.
+This project is based on the Kaggle IEEE-CIS Fraud Detection dataset. The model achieved a score of **0.799174** on the public leaderboard.
+However, the primary focus of this project was not to obtain a high score, but to build a complete, production-ready MLOps pipeline.
+![kaggle.png](docs/kaggle.png)
 
 ## Limitations, Known Issues
 #### macOS: SIGSEGV when running LightGBM after PyTorch
@@ -215,15 +226,6 @@ D2 имеет красный влево, а синий вправо. Значи�
 P_emaildomain - да, валидный признак: модель определяет анонимные домены почты.
 
 
-Не запускать fastapi, пока база не поднята. Прописать это в docker-compose:
-
-  fastapi_app:
-    build: .
-    ports:
-      - "8000:8000"
-    depends_on:
-      postgres_db:
-        condition: service_healthy # Ждем, пока healthcheck базы не скажет "ОК"
 
 
 
