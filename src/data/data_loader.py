@@ -18,8 +18,7 @@ def load_data(table_name):
                                    f"@{os.getenv('POSTGRES_HOST')}:{os.getenv('POSTGRES_PORT')}/{os.getenv('POSTGRES_DB')}")
         engine.connect()
     except Exception as e:
-        logging.error("PostgreSQL connection failed")
-        # logging.error(f"PostgreSQL connection failed: {e.orig}") # Debug
+        logging.error(f"PostgreSQL connection failed: {e.orig}") # Debug
         sys.exit(1)
 
     # Zero possibility of SQL-injections, therefore it's safe to use.
@@ -49,7 +48,7 @@ def load_data(table_name):
     X = df.drop(columns=["isFraud", "TransactionID", "TransactionDT", #
                          "id_24", "id_25", "id_07", "id_08", "id_21", "id_26", "id_27", # trash values
                          "id_22", "id_23", "dist2", "D7", "id_18",                      # trash values
-                         "uid1", "card1"], errors='ignore')                             # overfitting
+                         "uid1", "uid2", "uid3", "uid4", "card1"], errors='ignore')     # overfitting
 
     # Downsampling
     float64_cols = X.select_dtypes(include=['float64']).columns

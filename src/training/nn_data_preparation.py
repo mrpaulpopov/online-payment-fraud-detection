@@ -10,7 +10,10 @@ from sklearn.preprocessing import StandardScaler
 from src.paths import IMPUTER_SCALER_PATH, INFERENCE_PATH
 
 
-def pytorch_preprocessing(X_train, X_val, X_test, y_train, config):
+def pytorch_preprocessing(X_train, X_val, X_test, config):
+    '''
+    High cardinality filtering.
+    '''
     logging.info('Starting PyTorch preprocessing')
     high_cardinality_threshold = config["high_cardinality_threshold"]
 
@@ -107,7 +110,7 @@ def pytorch_preprocessing(X_train, X_val, X_test, y_train, config):
 
 def pytorch_filtering_rows(X_train_nn, X_val_nn, y_train, y_val):
     '''
-    For training the Autoencoder, we need only normal transactions (isFraud=0 rows)
+    For training the Autoencoder, we need only normal transactions (isFraud=0 rows).
     '''
     fraud0_mask_train = (y_train == 0).values
     X_train_nn_short = X_train_nn[fraud0_mask_train]

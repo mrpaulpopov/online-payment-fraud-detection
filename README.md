@@ -58,99 +58,82 @@ I made hyperparameters optimization in that order:
 3. I made a comparison of metrics between PyTorch+LightGBM and LightGBM only (baseline pipeline).
 
 ## Threshold Optimization (Math vs. Business)
-Threshold converts a probability to a boolean prediction. Using `precision_recall_curve`, I developed the two approaches to find it:
+Threshold converts a probability to a boolean prediction. Using `precision_recall_curve` (which was converted into precision-recall-thresholds dataframe), I developed the two approaches to find it:
 ### Business-driven threshold
 Business says: 'You detect fraud. We want that no more than 25% should be false alerts, because they are good customers
-who will definitely be angry and call us.' - 
+who will definitely be angry and call us.' - it means that Business False Positive Target = 0.25.
+
+Business False Positive Target = (1 - Business Precision Target), I get all the precisions which are higher than business precision target.
 
 However, if business target is unreachable, mathematical threshold will be used as a fallback.
 
 ### Mathematical Threshold
+It uses the f1-formula and gets a recall and a precision from the best F1-ratio.
 
+### Threshold plot
+![probability_distribution.png](docs/plots/probability_distribution.png)
 
-## Model Evaluation, SHAP
-PR-AUC
-Key final metrics:
-lgbm_cv_pr_auc
-0.7307300546504649
--
-lgbm_train_precision
-0.9081603435934145
--
-lgbm_train_recall
-0.8726784977300867
--
-lgbm_train_f1
-0.8900659464010102
--
-lgbm_train_pr_auc
-0.940838526180892
--
-lgbm_train_recall_at_fpr
-0.8199889943596093
--
-lgbm_val_accuracy
-0.9745204953658234
--
-lgbm_val_precision
-0.6696930393428447
--
-lgbm_val_recall
-0.5092044707429323
--
-lgbm_val_f1
-0.5785247432306256
--
-lgbm_val_roc_auc
-0.9285942436920803
--
-lgbm_val_pr_auc
-0.6082407997366494
--
-lgbm_val_recall_at_fpr
-0.3136094674556213
--
-lgbm_test_accuracy
-0.9692033280274551
--
-lgbm_test_precision
-0.5689320388349515
--
-lgbm_test_recall
-0.4751865066493675
--
-lgbm_test_f1
-0.5178508306822198
--
-lgbm_test_pr_auc
-0.5435352678310291
--
-lgbm_test_recall_at_fpr
-0.2403503081414207
--
+## Model Evaluation
+### Final metrics
+Accuracy metric is pretty useless in this project: dataset has only 3% of fraud. It means that model that always returns 'no fraud' will get 97% of accuracy.
+Precision = 1 - False Positive Rate, percentage of amount without false alerts.
+Recall = True Positive Rate, percentage of real fraud detection.
+ROC-AUC = True Positive Rate / False Positive Rate, how the model classifies the data. 0.5 means random selection, 0.9+	is good.
+F1 - it's a Precision and Recall harmonic ratio. However, it depends on fixed threshold value.
+PR-AUC - it's a square under the curve, it doesn't depend on threshold value.
+Recall@FPR - 'How many fraud alerts we detect if we allow only 1% of false alarms?'. It uses `business_fp_target`.
+
+## SHAP Values
+![shap_values.png](docs/plots/shap_values.png)
+As we see, anomaly_scores really helps the LightGBM model to correlate with fraud alerts. Also we see correlating categorical features as P_emaildomain (probably anonymous domains), DeviceInfo, and card6.
 
 ## API
+This is FastAPI interface which uses **lifespan** pipeline. With launch, service should load into a memory all the data from disk for an inference: models weights, meta-information from json.
+
+### Endpoint /healthcheck (GET)
+This is asynchronous function. It should return:
+```
+health_status = {
+        "api": "ok",
+        "database": "ok",
+        "models": "ok"
+    }
+```
+
+1. It uses an asynchronous engine `asyncpg` and tries to execute inside the database: `SELECT 1;`
+2. It checks than model weights were loaded from files into a memory.
+
+### Endpoint /predict (POST)
+First of all, it has a dependency `verify_api_key`: it checks the correct password `123`. Also router checks that all the necessary data exist.
+Then it sends input data and meta-data into a service `process_payment`.
+
+### Service process_payment
+It has a sub-function `apply_business_rules`: simple rules written by business that definitely leads to fraud alert.
+For instance, if amount of the transaction > 500000 and it was made from a new device, it returns: "Blocked by Rule: Huge amount from new device" and returns a fraud alert.
+Only if business rules were passed, inference pipeline would be started.
+
+## Inference pipeline
 
 ## How to Run (Docker & GPU)
+#### CPU Launch
 ```
-docker compose up -d --build training
-docker logs -f fraud_training
-
-
-docker compose down
 docker-compose up -d --build
-
-docker compose stop training
 ```
 
 #### GPU launch
-`docker-compose -f docker-compose.yml -f docker-compose.gpu.yml up --build`
+```
+docker-compose -f docker-compose.yml -f docker-compose.gpu.yml up --build
+```
 
 #### MLflow interface
-`localhost:5001/#/experiments/1/runs`
+```
+localhost:5001/#/experiments/1/runs
+```
 
 #### FastAPI interface
-`localhost:8000`
+```
+localhost:8000
+```
 
 #### Optuna hyperparameters optimization
 ```
@@ -169,7 +152,7 @@ However, the primary focus of this project was not to obtain a high score, but t
 ![kaggle.png](docs/kaggle.png)
 
 ## Limitations, Known Issues
-#### macOS: SIGSEGV when running LightGBM after PyTorch
+#### Local launch on macOS: SIGSEGV when running LightGBM after PyTorch
 
 On macOS, PyTorch and LightGBM both ship their own OpenMP runtime (`libomp`),
 which causes a segfault when both are used in the same process.
@@ -177,53 +160,7 @@ which causes a segfault when both are used in the same process.
 My first solution was to limit `num_threads=1` for LightGBM on macOS, which disables the conflicting OpenMP initialization.
 However, I decided to not allow to launch this project locally, only Docker (Linux) runs allowed with full multi-threading.
 
-#### Hyperparameter tuning assumption
-In the ideal case, I should have done LightGBM HPO both before adding anomaly_scores and after it. 
 
-
-
-Accuracy - процент, когда модель вообще права.
-"Но accuracy может быть обманчивой при дисбалансе классов.
-Например:
-97% нормальных транзакций,
-3% fraud.
-Тогда модель, которая всегда говорит "не fraud", уже получит ~97% accuracy.
-Поэтому здесь довольно бесполезна.
-
-Precision:
-Это важно, если false positive дорогие:
-блокировка карт,
-ручная проверка,
-раздражение клиентов.
-Высокий precision - мало false alarms, мало раздраженных клиентов. При =1 нет ни одного ложного
-
-Recall:
-Это наоборот
-если 0.31, то модель пропускает ~69% мошенничества.
-Для fraud detection recall обычно критически важен.
-При =1 ни один fraud не пропущен.
-
-ROC-AUC (насколько хорошо разделяет классы)
-У ROC-кривой оси: true positive rate / false positive rate.
-0.5	случайное угадывание
-0.9+	отличное
-
-
-f1 - это Precision и Recall в одном значении. Однако это срез в одной точке при заданном threshold.
-PR-AUC при этом показывает площадь под графиком, не зависит от threshold.
-
-
-Recall@FPR
-"Сколько fraud мы ловим, если разрешаем только 1% falae alarms?"
-Очень полезная метрика для бизнеса, где бизнес сам задает этот процент.
-
-Как читать SHAP values (beeswarm plot):
-Значения вправо увеличивают результат (вероятность fraud), влево уменьшают.
-серый цвет - категориальные features, тут просто редкие значения
-D2 имеет красный влево, а синий вправо. Значит, увеличение D2 уменьшает вероятность fraud.
-
-
-P_emaildomain - да, валидный признак: модель определяет анонимные домены почты.
 
 
 

@@ -14,7 +14,7 @@ from src.models.autoencoder import autoencoder_nn
 from src.training.nn_utils import EarlyStopping, build_dataloader
 
 
-def train_nn_loop(model, train_loader, val_loader, test_loader, optimizer, loss_fn, N_EPOCHS, pytorch_params, trial=None):
+def train_nn_loop(model, train_loader, val_loader, optimizer, loss_fn, N_EPOCHS, trial=None):
     '''
     Child function of training_nn.
     '''
@@ -100,51 +100,17 @@ def train_nn_loop(model, train_loader, val_loader, test_loader, optimizer, loss_
     model.load_state_dict(best_model_weights)
     val_loss = early_stopping.best_loss
 
-    logging.info('Starting evaluation on Test set')
-    model.eval()
-    test_loss_sum = 0
-    test_sq_err_sum = 0
-    test_abs_err_sum = 0
-    total_test_elements = 0
-    with torch.no_grad():
-        for X_test_batch, target_batch in test_loader:
-            X_test_batch = X_test_batch.to(DEVICE)
-            target_batch = target_batch.to(DEVICE)
-
-            preds = model(X_test_batch)
-            loss = loss_fn(preds, target_batch)
-
-            test_loss_sum += loss.item()
-
-            test_sq_err_sum += torch.sum((preds - target_batch) ** 2).item()
-            test_abs_err_sum += torch.sum(torch.abs(preds - target_batch)).item()
-            total_test_elements += target_batch.numel()
-
-    if len(test_loader) > 0:
-        test_loss = test_loss_sum / len(test_loader)
-        test_rmse = np.sqrt(test_sq_err_sum / total_test_elements)
-        test_mae = test_abs_err_sum / total_test_elements
-
-        print("-" * 50)
-        print(
-            f"FINAL TEST METRICS | "
-            f"test_loss={test_loss:.4f} | "
-            f"test_rmse={test_rmse:.4f} | "
-            f"test_mae={test_mae:.4f}"
-        )
-        print("-" * 50)
-
     torch.save(model.state_dict(), NN_MODEL_PATH)
     logging.info(f"Model saved to {NN_MODEL_PATH}")
     return val_loss
 
 
-def training_nn(X_train, X_val, X_test, pytorch_params, trial=None):
+def training_nn(X_train_short, X_val_short, pytorch_params, trial=None):
     '''
     Entry point for PyTorch training.
     '''
     # Dimensions
-    input_dim = X_train.shape[1]
+    input_dim = X_train_short.shape[1]
 
     # Reading Config
     latent_dim = pytorch_params["latent_dim"]
@@ -164,11 +130,10 @@ def training_nn(X_train, X_val, X_test, pytorch_params, trial=None):
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
     loss_fn = nn.MSELoss()
 
-    train_loader = build_dataloader(X_train, batch_size)
-    val_loader = build_dataloader(X_val, batch_size)
-    test_loader = build_dataloader(X_test, batch_size)
+    train_loader = build_dataloader(X_train_short, batch_size)
+    val_loader = build_dataloader(X_val_short, batch_size)
 
-    val_loss = train_nn_loop(model, train_loader, val_loader, test_loader, optimizer, loss_fn, n_epochs, pytorch_params, trial=trial)
+    val_loss = train_nn_loop(model, train_loader, val_loader, optimizer, loss_fn, n_epochs, trial=trial)
     return model, val_loss
 
 

@@ -28,12 +28,9 @@ def process_payment(input_transaction, inference_meta, num_imputer, scaler, mode
 
     # features = extract_features(transaction) # TODO
 
-    fraud_probability, is_fraud = inference_pipeline(input_transaction, # TODO
-                                                     inference_meta=request.app.inference_meta,
-                                                     num_imputer=request.app.state.num_imputer,
-                                                     scaler=request.app.state.scaler,
-                                                     model_lgbm=request.app.state.model_lgbm,
-                                                     model_pytorch=request.app.state.model_pytorch)
+    fraud_probability, is_fraud = inference_pipeline(input_transaction, inference_meta,
+                                                     num_imputer, scaler,
+                                                     model_lgbm, model_pytorch)
 
     if is_fraud:
         action = f"Fraud (Blocked by ML, confidence: {fraud_probability})"

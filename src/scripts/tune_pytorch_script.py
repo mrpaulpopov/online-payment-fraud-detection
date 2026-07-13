@@ -43,7 +43,8 @@ def objective(trial):
         }
         mlflow.log_params(trial_params)
 
-        _, val_loss = training_nn(X_train_nn_short, X_val_nn_short, X_test_nn, trial_params, trial=trial) # Optuna params were injected
+        _, val_loss = training_nn(X_train_nn_short, X_val_nn_short, X_test_nn, trial_params,
+                                  trial=trial)  # Optuna params were injected
         mlflow.log_metric("val_loss", val_loss)
         return val_loss
 

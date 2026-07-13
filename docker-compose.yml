@@ -47,8 +47,10 @@ services:
         condition: service_healthy # checks that it's not only started, but is also ready
       mlflow:
         condition: service_healthy
+    env_file:
+      - .env
     environment:
-#      - POSTGRES_HOST=db # overriding .env
+      - POSTGRES_HOST=db
       - MLFLOW_TRACKING_URI=http://mlflow:5000
     volumes:
       - .:/app

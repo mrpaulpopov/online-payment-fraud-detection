@@ -1,6 +1,7 @@
 import json
 import logging
 import pickle
+import sys
 from contextlib import asynccontextmanager
 
 import lightgbm as lgb
@@ -22,6 +23,14 @@ logging.basicConfig(
 async def lifespan(app: FastAPI):
     logging.info("Starting up: Loading ML models...")
     try:
+        # Critical health check
+        if not NN_MODEL_PATH.exists():
+            raise FileNotFoundError("PyTorch model is strictly required but not found.")
+        if not LGBM_MODEL_PATH.exists():
+            raise FileNotFoundError("LightGBM model is not found.")
+        if not INFERENCE_PATH.exists() or not IMPUTER_SCALER_PATH.exists():
+            raise FileNotFoundError("Some of preprocessing objects not found.")
+
         # Read JSON
         inference_meta = json.loads(INFERENCE_PATH.read_text(encoding="utf-8"))
         input_dim = inference_meta["input_dim"]
@@ -50,8 +59,8 @@ async def lifespan(app: FastAPI):
 
         logging.info("Models loaded successfully!")
     except Exception as e:
-        logging.error(f"Failed to load models during startup: {e}")
-        raise e
+        logging.critical(f"Failed to load models during startup: {e}")
+        sys.exit(1)
     yield
     logging.info("Shutting down: Flushing memory...")
     app.state.model_lgbm = None

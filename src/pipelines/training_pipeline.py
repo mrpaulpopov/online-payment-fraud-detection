@@ -42,8 +42,8 @@ def training_pipeline():
 
     if use_autoencoder:
         # ------------ PyTorch side --------------
-        X_train_nn, X_val_nn, X_test_nn = pytorch_preprocessing(X_train, X_val, X_test, y_train,
-                                                                config["preprocessing"])
+        X_train_nn, X_val_nn, X_test_nn = pytorch_preprocessing(X_train, X_val, X_test, config[
+            "preprocessing"])  # X_test_nn is needed only for inference
         X_train_nn_short, X_val_nn_short = pytorch_filtering_rows(X_train_nn, X_val_nn, y_train, y_val)
 
     tracking_uri = os.getenv("MLFLOW_TRACKING_URI", "http://mlflow:5000")
@@ -53,8 +53,7 @@ def training_pipeline():
         if use_autoencoder:
             # ------------ PyTorch side --------------
             logging.info('Autoencoder+LGBM pipeline: starting PyTorch training')
-            model_autoencoder, pt_val_loss = training_nn(X_train_nn_short, X_val_nn, X_test_nn,
-                                                         config["pytorch_params"])
+            model_autoencoder, pt_val_loss = training_nn(X_train_nn_short, X_val_nn_short, config["pytorch_params"])
             pt_params = {f"pt_{k}": v for k, v in config["pytorch_params"].items()}
             mlflow.log_params(pt_params)
             mlflow.log_metric("pt_val_loss", pt_val_loss)
@@ -105,7 +104,6 @@ def evaluation_pipeline(model_lgbm, X_train, y_train, X_val, y_val, X_test, y_te
     config = yaml.safe_load(CONFIG_PATH.read_text(encoding="utf-8"))
     business_fp_target = config["business_targets"]["business_fp_target"]
     threshold_strategy = config["business_targets"]["threshold_strategy"]
-    target_fpr = config["business_targets"]["target_fpr"]
 
     # MLflow settings
     tracking_uri = os.getenv("MLFLOW_TRACKING_URI", "http://mlflow:5000")
@@ -114,9 +112,10 @@ def evaluation_pipeline(model_lgbm, X_train, y_train, X_val, y_val, X_test, y_te
     best_threshold = find_best_threshold(model_lgbm, X_val, y_val, business_fp_target, threshold_strategy,
                                          run_id)
     logging.info('Starting evaluate train, val, test')
-    evaluate_and_log_metrics(model_lgbm, X_train, y_train, best_threshold, target_fpr, run_id, prefix='train')
-    evaluate_and_log_metrics(model_lgbm, X_val, y_val, best_threshold, target_fpr, run_id, prefix='val')
-    evaluate_and_log_metrics(model_lgbm, X_test, y_test, best_threshold, target_fpr, run_id, prefix='test')  # Test
+    evaluate_and_log_metrics(model_lgbm, X_train, y_train, best_threshold, business_fp_target, run_id, prefix='train')
+    evaluate_and_log_metrics(model_lgbm, X_val, y_val, best_threshold, business_fp_target, run_id, prefix='val')
+    evaluate_and_log_metrics(model_lgbm, X_test, y_test, best_threshold, business_fp_target, run_id,
+                             prefix='test')  # Test
 
     if shap:
         plot_shap_values(model_lgbm, X_val, run_id)
