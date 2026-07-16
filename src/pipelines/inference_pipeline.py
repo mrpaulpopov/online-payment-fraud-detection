@@ -5,7 +5,7 @@ import torch
 import torch.nn.functional as F
 
 
-def inference_pipeline(data, inference_meta, num_imputer, scaler, model_lgbm, model_pytorch):
+def inference_pipeline(data, inference_meta, model_lgbm):
     original_features = inference_meta["pytorch_features"]["original_features"]
     best_threshold = inference_meta["best_threshold"]
     final_pytorch_features = inference_meta["pytorch_features"]["final_pytorch_features"]

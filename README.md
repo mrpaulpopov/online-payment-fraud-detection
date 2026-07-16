@@ -1,12 +1,22 @@
 ### IEEE-CIS Fraud Detection
 
-## Project Overview & Architecture
-Online Payment Fraud Detection
+## Project Overview 
+Online Payment Fraud Detection.
+
+During R&D, I made and optimized (with Optuna) two pipelines: LightGBM only and hybrid PyTorch Autoencoder + LightGBM.
+Metrics from MLflow showed that feature Anomaly Score from autoencoder strongly increased metrics on Train set, 
+but on the Test set the key business-metric "Recall @ FPR 5%" was higher with baseline LightGBM pipeline (0.646 vs 0.636).
+For reaching the best principles of MLOps (low latency, lightweight Docker-container, lack of need to Scaler/Imputer),
+for Inference АРІ I choose the baseline LightGBM pipeline.
+
+## Architecture Scheme
+
 
 ## Technical Stack
 - Infrastructure: Docker Compose, PostgreSQL, FastAPI
 - ML: PyTorch, LightGBM
 - MLOps & Tracking: MLflow, Optuna
+
 
 ## Data Pipeline & Feature Engineering
 ```
@@ -34,7 +44,7 @@ I made a few behavioral assumptions, the aggregates based on uid1:
 - Novelty of the device, for each mobile and desktop type.
 Then I did slight preprocessing in Pandas (dropped columns with (null ratio > 90%), sorted by transaction time).
 
-Train test split: time-based split was used to prevent temporal leakage.
+Time series split for Train/Val/Test was used to prevent temporal leakage.
 
 ### Simplified data flow schema
 ```
@@ -46,19 +56,25 @@ train_data = prepare_data_for_lgbm(X_train)
 ```
 
 ## Modeling: Autoencoder + LightGBM
+I made a possibility to run 2 different pipelines: LightGBM with added autoencoder and LightGBM only (baseline).
 My baseline model was LightGBM. However, to help him find anomaly patterns in transactions, I made unsupervised method
-of autoencoding in PyTorch. It returns a new column `anomaly_score`, and then LightGBM train with it.
+of autoencoding in PyTorch. It returns a new column `anomaly_score`, and then LightGBM trains with it.
 #### Autoencoder
 I used bottleneck method with customizable `latent_dim` (the narrowest part).
 
 ## MLOps & Hyperparameter Tuning
 I made hyperparameters optimization in that order:
 1. PyTorch HPO. I found the best hyperparameters for PyTorch Autoencoder (including `latent_dim`)
-2. LightGBM HPO. I found the best hyperparameters for LightGBM with anomaly_scores taken from already optimized PyTorch Autoencoder.
-3. I made a comparison of metrics between PyTorch+LightGBM and LightGBM only (baseline pipeline).
+2. LightGBM HPO with scores from PyTorch. I found the best hyperparameters for LightGBM with anomaly_scores taken from already optimized PyTorch Autoencoder.
+3. LightGBM HPO without scores from PyTorch. I made a comparison of metrics between PyTorch+LightGBM and LightGBM only (baseline pipeline).
+
+![plot_optima.png](docs/plots/plot_optima.png)
+As we see, Optuna HPO didn't show dramatic rise of metrics on the test set; however, it has decreased the overfitting and
+increased the model's stability during the cross-validation (CV PR-AUC was increased from 0.685 to 0.739).
+
 
 ## Threshold Optimization (Math vs. Business)
-Threshold converts a probability to a boolean prediction. Using `precision_recall_curve` (which was converted into precision-recall-thresholds dataframe), I developed the two approaches to find it:
+I developed two approaches to find it using `precision_recall_curve`:
 ### Business-driven threshold
 Business says: 'You detect fraud. We want that no more than 25% should be false alerts, because they are good customers
 who will definitely be angry and call us.' - it means that Business False Positive Target = 0.25.
@@ -73,8 +89,19 @@ It uses the f1-formula and gets a recall and a precision from the best F1-ratio.
 ### Threshold plot
 ![probability_distribution.png](docs/plots/probability_distribution.png)
 
-## Model Evaluation
-### Final metrics
+## Final Model Evaluation
+### Comparison of Two Pipelines
+![plot_pipelines.png](docs/plots/plot_pipelines.png)
+_(I made a custom script to visualize metrics from MLflow using run_id)_
+
+As we see, the feature Anomaly Score from autoencoder strongly increased metrics on Train set, 
+but on the Test set the key business-metric "Recall @ FPR 5%" was higher with baseline LightGBM pipeline (0.646 vs 0.636).
+For reaching the best principles of MLOps (low latency, lightweight Docker-container, lack of need to Scaler/Imputer),
+for Inference АРІ I choose the baseline LightGBM pipeline.
+
+
+
+
 Accuracy metric is pretty useless in this project: dataset has only 3% of fraud. It means that model that always returns 'no fraud' will get 97% of accuracy.
 Precision = 1 - False Positive Rate, percentage of amount without false alerts.
 Recall = True Positive Rate, percentage of real fraud detection.
@@ -84,8 +111,16 @@ PR-AUC - it's a square under the curve, it doesn't depend on threshold value.
 Recall@FPR - 'How many fraud alerts we detect if we allow only 1% of false alarms?'. It uses `business_fp_target`.
 
 ## SHAP Values
-![shap_values.png](docs/plots/shap_values.png)
-As we see, anomaly_scores really helps the LightGBM model to correlate with fraud alerts. Also we see correlating categorical features as P_emaildomain (probably anonymous domains), DeviceInfo, and card6.
+
+| SHAP values from LightGBM baseline pipeline              | SHAP values from Autoencoder + LightGBM pipeline |
+|----------------------------------------------------------|---------------------------------------------------------|
+| ![shap_values_lgbm.png](docs/plots/shap_values_lgbm.png) | ![shap_values_pt.png](docs/plots/shap_values_pt.png)    |
+
+
+
+
+As we see, anomaly_scores really helps the LightGBM model to correlate with fraud alerts.
+Also we see correlating categorical features as P_emaildomain (probably anonymous domains), DeviceInfo, and card6 field.
 
 ## API
 This is FastAPI interface which uses **lifespan** pipeline. With launch, service should load into a memory all the data from disk for an inference: models weights, meta-information from json.

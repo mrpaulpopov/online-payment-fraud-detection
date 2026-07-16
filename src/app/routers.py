@@ -76,7 +76,7 @@ async def predict_endpoint(data: Transaction, response: Response, request: Reque
         }
 
     try:
-        result = process_payment(data, inference_meta, num_imputer, scaler, model_lgbm, model_pytorch)
+        result = process_payment(data, inference_meta, model_lgbm)
         logging.info(f"Prediction completed in {time.time() - start:.4f}s")
     except HTTPException as e:
         raise e

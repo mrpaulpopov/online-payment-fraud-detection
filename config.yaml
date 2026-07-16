@@ -10,17 +10,17 @@ lgbm_params:
   "objective": "binary"
   "metric": ["auc", "average_precision"]
   "boosting_type": "gbdt"
-  "learning_rate": 0.07308155218896
-  "num_leaves": 36
+  "learning_rate": 0.04326812777022993
+  "num_leaves": 46
   "max_depth": 6
-  "feature_fraction": 0.592444726907
-  "bagging_fraction": 0.761012991294
-  "bagging_freq": 5
-  "min_gain_to_split": 0.76014646375
-  "lambda_l1": 0.3575782827
-  "lambda_l2": 3.0075599047387
-  "min_data_in_leaf": 100
-  "scale_pos_weight": 1.93139122796545
+  "feature_fraction": 0.7951465798454141
+  "bagging_fraction": 0.8140068172963008
+  "bagging_freq": 2
+  "min_gain_to_split": 0.7677607867288584
+  "lambda_l1": 0.34079057646894473
+  "lambda_l2": 0.5286743981802347
+  "min_data_in_leaf": 183
+  "scale_pos_weight": 2.3042399671763754
   "verbose": -1
 
 pytorch_params:

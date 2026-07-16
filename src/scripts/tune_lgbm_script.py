@@ -25,26 +25,28 @@ logging.basicConfig(
 
 # Loading data
 config = yaml.safe_load(CONFIG_PATH.read_text(encoding="utf-8"))
+use_ae = config["pipeline"]["use_autoencoder"]
 X, y, _ = load_data(table_name='train_final_features')
 X_train, y_train, X_val, y_val, X_test, y_test = train_split(X, y, config["train_split"])
 
 # ===========================================
 # -------------- PyTorch side ---------------
 # ===========================================
-X_train_nn, X_val_nn, X_test_nn = pytorch_preprocessing(X_train, X_val, X_test, y_train, config["preprocessing"])
-X_train_nn_short, X_val_nn_short = pytorch_filtering_rows(X_train_nn, X_val_nn, y_train, y_val)
+if use_ae:
+    X_train_nn, X_val_nn, X_test_nn = pytorch_preprocessing(X_train, X_val, X_test, y_train, config["preprocessing"])
+    X_train_nn_short, X_val_nn_short = pytorch_filtering_rows(X_train_nn, X_val_nn, y_train, y_val)
 
-logging.info('Starting PyTorch training')
-model_autoencoder, pt_val_loss = training_nn(X_train_nn_short, X_val_nn, X_test_nn, config["pytorch_params"])
-pt_params = {f"pt_{k}": v for k, v in config["pytorch_params"].items()}
+    logging.info('Starting PyTorch training')
+    model_autoencoder, pt_val_loss = training_nn(X_train_nn_short, X_val_nn, X_test_nn, config["pytorch_params"])
+    pt_params = {f"pt_{k}": v for k, v in config["pytorch_params"].items()}
 
-train_scores = pytorch_anomaly_scores(model_autoencoder, X_train_nn)
-val_scores = pytorch_anomaly_scores(model_autoencoder, X_val_nn)
-test_scores = pytorch_anomaly_scores(model_autoencoder, X_test_nn)
-X_train, X_val, X_test = assign_anomaly_scores(X_train, X_val, X_test, train_scores, val_scores, test_scores)
+    train_scores = pytorch_anomaly_scores(model_autoencoder, X_train_nn)
+    val_scores = pytorch_anomaly_scores(model_autoencoder, X_val_nn)
+    test_scores = pytorch_anomaly_scores(model_autoencoder, X_test_nn)
+    X_train, X_val, X_test = assign_anomaly_scores(X_train, X_val, X_test, train_scores, val_scores, test_scores)
 
-del X_train_nn_short, X_train_nn, X_val_nn, X_test_nn, train_scores, val_scores, test_scores
-gc.collect()
+    del X_train_nn_short, X_train_nn, X_val_nn, X_test_nn, train_scores, val_scores, test_scores
+    gc.collect()
 
 # ===========================================
 # -------------- LightGBM side --------------

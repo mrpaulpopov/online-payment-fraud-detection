@@ -9,33 +9,44 @@ from src.paths import INFERENCE_PATH
 from src.pipelines.inference_pipeline import inference_pipeline
 
 
-def apply_business_rules(transaction):
+def apply_business_rules(transaction: dict):
     if transaction['amount'] > 500000 and transaction['is_new_device']:
-        return True, "Blocked by Rule: Huge amount from new device"
+        return True, "Blocked by Business Rule: Huge amount from new device"
 
-    return None, "Pass to ML"
+    return False, ""
 
 
-def process_payment(input_transaction, inference_meta, num_imputer, scaler, model_lgbm, model_pytorch):
+def graceful_degradation(transaction: dict):
+    if transaction['amount'] > 10_000_000:
+        return True
 
+    return False
+
+
+def process_payment(input_transaction: dict, inference_meta, model_lgbm):
     fraud_probability = None
     is_fraud = None
-    rule_decision, rule_reason = apply_business_rules(input_transaction)
+    business_decision, rule_reason = apply_business_rules(input_transaction)
 
-    if rule_decision is True:
-        action = f"Fraud (Blocked by Rules: {rule_reason})"
+    if business_decision is True:
+        action = f"Fraud (Blocked by Business Rules: {rule_reason})"
         # return transaction_id, fraud_probability, is_fraud, action # TODO
+        return fraud_probability, True, action
 
-    # features = extract_features(transaction) # TODO
-
-    fraud_probability, is_fraud = inference_pipeline(input_transaction, inference_meta,
-                                                     num_imputer, scaler,
-                                                     model_lgbm, model_pytorch)
-
-    if is_fraud:
-        action = f"Fraud (Blocked by ML, confidence: {fraud_probability})"
-    else:
-        action = "Legit (Passed ML)"
+    try:
+        # features = extract_features(transaction) # TODO
+        fraud_probability, is_fraud = inference_pipeline(input_transaction, inference_meta, model_lgbm)
+        if is_fraud:
+            action = f"Fraud (Blocked by ML, confidence: {fraud_probability:.2f})"
+        else:
+            action = "Legit (Passed ML)"
+    except Exception as e:
+        logging.error(f"ML Pipeline failed: {str(e)}. Falling back to Graceful Degradation.")
+        is_fraud = graceful_degradation(input_transaction)
+        if is_fraud is True:
+            action = "Fraud (Blocked by Fallback rules)"
+        else:
+            action = "Legit (Passed Fallback rules)"
 
     # return transaction_id, fraud_probability, is_fraud, action # TODO
     return fraud_probability, is_fraud, action
