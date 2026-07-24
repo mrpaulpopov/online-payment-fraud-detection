@@ -10,9 +10,9 @@ for Inference АРІ I choose the baseline LightGBM pipeline.
 
 ## Training Data Flow Diagram
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/training_data_flow_dark.svg">
-  <source media="(prefers-color-scheme: light)" srcset="docs/diagrams/training_data_flow_light.svg">
-  <img alt="Training Data Flow Diagram" src="docs/diagrams/training_data_flow_light.svg">
+  <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/training_data_flow_diagram_dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="docs/diagrams/training_data_flow_diagram_light.svg">
+  <img alt="Training Data Flow Diagram" src="docs/diagrams/training_data_flow_diagram_light.svg">
 </picture>
 
 
