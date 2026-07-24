@@ -94,16 +94,14 @@ def plot_shap_values(model, X_val, run_id):
     logging.info("Shap summary plots saved.")
 
 
-def find_best_threshold(model, X_val, y_val, business_fp_target, threshold_strategy, run_id):
+def find_best_threshold(y_val, y_val_prob, business_fp_target, threshold_strategy, run_id):
     '''
-    Это автоматический способ нахождения threshold через business target (желаемый BUSINESS_TARGET_PRECISION)
     Threshold управляет переводом из probability 0.0-1.0 в decision 0-1 (not fraud, legit / fraud, to block).
     С какого момента probability считается fraud?
     '''
     logging.info('Starting find_best_threshold')
 
     client = mlflow.MlflowClient()
-    y_val_prob = model.predict(X_val, num_iteration=model.best_iteration)  # probability from 0.0 to 1.0
     precisions, recalls, thresholds = precision_recall_curve(y_val, y_val_prob)  # 'меню' всех возможных вариантов
 
     pr_df = pd.DataFrame({
@@ -144,33 +142,6 @@ def find_best_threshold(model, X_val, y_val, business_fp_target, threshold_strat
 
     client.log_param(run_id, "best_business_threshold", best_business_threshold)
 
-
-    # ========================================
-    # --------------- PLOTS ------------------
-    # ========================================
-
-    plt.figure(figsize=(10, 6))
-    # Legit transactions
-    sns.histplot(y_val_prob[y_val == 0], color='green', label='Legit (0)', stat="density", bins=50, alpha=0.5, kde=True)
-    # Fraud transactions
-    sns.histplot(y_val_prob[y_val == 1], color='red', label='Fraud (1)', stat="density", bins=50, alpha=0.5, kde=True)
-
-    plt.axvline(best_business_threshold, color='orange', linestyle='--', label='Best Business threshold')
-    plt.axvline(best_f1_threshold, color='blue', linestyle='--', label='Best F1 threshold')
-
-    plt.title("Predicted Probability Distribution")
-    plt.xlabel("Predicted Probability of Fraud")
-    plt.ylabel("Density")
-    plt.xlim(0, 1)
-    plt.legend()
-
-    # Save to file
-    save_path = PLOTS_DIR / 'probability_distribution.png'
-    plt.savefig(save_path, bbox_inches="tight", dpi=300)
-    plt.close()
-    # Save to MLflow
-    client.log_artifact(run_id, save_path, 'plots')
-
     # ========================================
     # -------------- STRATEGY ----------------
     # ========================================
@@ -192,5 +163,5 @@ def find_best_threshold(model, X_val, y_val, business_fp_target, threshold_strat
     inference_meta["best_threshold"] = float(final_threshold)
     INFERENCE_PATH.write_text(json.dumps(inference_meta, indent=4), encoding="utf-8")
 
-    return final_threshold
+    return final_threshold, best_business_threshold, best_f1_threshold
 

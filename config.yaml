@@ -24,10 +24,10 @@ lgbm_params:
   "verbose": -1
 
 pytorch_params:
-  latent_dim: 48
-  learning_rate: 4.9817291e-05
-  batch_size: 2048
-  n_epochs: 150
+  latent_dim: 61
+  learning_rate: 0.000021318978
+  batch_size: 256
+  n_epochs: 50
 preprocessing:
   high_cardinality_threshold: 100
 

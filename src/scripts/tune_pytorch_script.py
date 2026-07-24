@@ -33,7 +33,7 @@ def objective(trial):
         print("Trial started.")
         latent_dim = trial.suggest_int("latent_dim", 8, 64)
         learning_rate = trial.suggest_float("learning_rate", 0.00001, 0.01, log=True)
-        batch_size = trial.suggest_categorical("batch_size", [256, 512, 1024, 2048])
+        batch_size = trial.suggest_categorical("batch_size", [256, 512, 1024, 2048, 4096])
 
         trial_params = {
             "latent_dim": latent_dim,
@@ -43,8 +43,7 @@ def objective(trial):
         }
         mlflow.log_params(trial_params)
 
-        _, val_loss = training_nn(X_train_nn_short, X_val_nn_short, X_test_nn, trial_params,
-                                  trial=trial)  # Optuna params were injected
+        _, val_loss = training_nn(X_train_nn_short, X_val_nn_short, trial_params, trial=trial)  # Optuna params were injected
         mlflow.log_metric("val_loss", val_loss)
         return val_loss
 
@@ -64,7 +63,7 @@ def main():
                                     pruner=optuna.pruners.MedianPruner(n_startup_trials=5, n_warmup_steps=3))
 
         # 50 trials, n_jobs=-1 parallels execution.
-        study.optimize(objective, n_trials=30, n_jobs=1)
+        study.optimize(objective, n_trials=40, n_jobs=1)
 
         print("\n--- HPO finished ---")
         print(f"Best Val Loss (MSE): {study.best_value:.6f}")

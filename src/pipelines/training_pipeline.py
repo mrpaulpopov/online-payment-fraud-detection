@@ -13,6 +13,7 @@ from src.data.split import train_split
 from src.paths import INFERENCE_PATH, CONFIG_PATH, LGBM_MODEL_PATH, NN_MODEL_PATH, CACHE_DIR
 from src.training.evaluation import evaluate_and_log_metrics, cross_validation, plot_shap_values, find_best_threshold
 from src.training.nn_data_preparation import pytorch_preprocessing, assign_anomaly_scores, pytorch_filtering_rows
+from src.training.plotting import plot_pr_curves, plot_density
 from src.training.train_lgbm import prepare_data_for_lgbm, training_lgbm
 from src.training.train_nn import training_nn, pytorch_anomaly_scores
 
@@ -42,8 +43,8 @@ def training_pipeline():
 
     if use_autoencoder:
         # ------------ PyTorch side --------------
-        X_train_nn, X_val_nn, X_test_nn = pytorch_preprocessing(X_train, X_val, X_test, config[
-            "preprocessing"])  # X_test_nn is needed only for inference
+        X_train_nn, X_val_nn, X_test_nn = pytorch_preprocessing(X_train, X_val, X_test, y_train, config[
+            "preprocessing"])
         X_train_nn_short, X_val_nn_short = pytorch_filtering_rows(X_train_nn, X_val_nn, y_train, y_val)
 
     tracking_uri = os.getenv("MLFLOW_TRACKING_URI", "http://mlflow:5000")
@@ -109,12 +110,15 @@ def evaluation_pipeline(model_lgbm, X_train, y_train, X_val, y_val, X_test, y_te
     tracking_uri = os.getenv("MLFLOW_TRACKING_URI", "http://mlflow:5000")
     mlflow.set_tracking_uri(tracking_uri)
 
-    best_threshold = find_best_threshold(model_lgbm, X_val, y_val, business_fp_target, threshold_strategy,
-                                         run_id)
+    y_val_prob = model_lgbm.predict(X_val, num_iteration=model_lgbm.best_iteration)  # probability from 0.0 to 1.0
+    final_threshold, business_thr, f1_thr = find_best_threshold(y_val, y_val_prob, business_fp_target, threshold_strategy, run_id)
+    plot_density(y_val, y_val_prob, run_id, business_thr, f1_thr)
+    plot_pr_curves(y_val, y_val_prob, run_id, title_prefix="Autoencoder+LightGBM Validation")
+
     logging.info('Starting evaluate train, val, test')
-    evaluate_and_log_metrics(model_lgbm, X_train, y_train, best_threshold, business_fp_target, run_id, prefix='train')
-    evaluate_and_log_metrics(model_lgbm, X_val, y_val, best_threshold, business_fp_target, run_id, prefix='val')
-    evaluate_and_log_metrics(model_lgbm, X_test, y_test, best_threshold, business_fp_target, run_id,
+    evaluate_and_log_metrics(model_lgbm, X_train, y_train, final_threshold, business_fp_target, run_id, prefix='train')
+    evaluate_and_log_metrics(model_lgbm, X_val, y_val, final_threshold, business_fp_target, run_id, prefix='val')
+    evaluate_and_log_metrics(model_lgbm, X_test, y_test, final_threshold, business_fp_target, run_id,
                              prefix='test')  # Test
 
     if shap:

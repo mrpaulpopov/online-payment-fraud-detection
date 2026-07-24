@@ -58,18 +58,15 @@ async def predict_endpoint(data: Transaction, response: Response, request: Reque
     logging.info("Prediction request received")
     start = time.time()
     model_lgbm = request.app.state.model_lgbm
-    model_pytorch = request.app.state.model_pytorch
-    num_imputer = request.app.state.num_imputer = None
-    scaler = request.app.state.scaler = None
     inference_meta = request.app.state.inference_meta = None
 
-    if model_lgbm is None or model_pytorch is None:
+    if model_lgbm is None:
         return {
             "status": "error",
             "details": "ML models are not loaded into memory"
         }
 
-    if num_imputer is None or scaler is None or inference_meta is None:
+    if inference_meta is None:
         return {
             "status": "error",
             "details": "Insufficient metadata for an inference."

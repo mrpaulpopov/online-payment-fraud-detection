@@ -10,7 +10,7 @@ from sklearn.preprocessing import StandardScaler
 from src.paths import IMPUTER_SCALER_PATH, INFERENCE_PATH
 
 
-def pytorch_preprocessing(X_train, X_val, X_test, config):
+def pytorch_preprocessing(X_train, X_val, X_test, y_train, config):
     '''
     High cardinality filtering.
     '''
@@ -21,7 +21,7 @@ def pytorch_preprocessing(X_train, X_val, X_test, config):
     num_cols = X_train.select_dtypes(include=['number']).columns
     all_str_cols = X_train.select_dtypes(include=['object', 'string', 'category']).columns
 
-    # --- ФИЛЬТР КАРДИНАЛЬНОСТИ (СПАСАЕТ RAM) ---
+    # HIGH CARDINALITY FILTER
     str_cols = []
     for col in all_str_cols:
         # Оставляем только те колонки, где меньше N уникальных значений
@@ -54,11 +54,18 @@ def pytorch_preprocessing(X_train, X_val, X_test, config):
     num_imputer = SimpleImputer(strategy='mean')
     scaler = StandardScaler()
 
-    num_train_data = num_imputer.fit_transform(X_train[num_cols])
-    num_train_data = scaler.fit_transform(num_train_data).astype('float32')
+    # 1. Fitting on legit data only
+    legit_train_idx = y_train[y_train == 0].index
+    num_imputer.fit(X_train.loc[legit_train_idx, num_cols])
+    legit_imputed_data = num_imputer.transform(X_train.loc[legit_train_idx, num_cols]) # replacing Nan to mean for Scaler
+    scaler.fit(legit_imputed_data)
+
+    # 2. Transforming the whole dataset
+    num_train_data = num_imputer.transform(X_train[num_cols])
+    num_train_data = scaler.transform(num_train_data).astype('float32')
     num_train_df = pd.DataFrame(num_train_data, columns=num_cols, index=X_train.index)
 
-    del num_train_data
+    del num_train_data, legit_imputed_data
     gc.collect()
 
     # Saving for inference

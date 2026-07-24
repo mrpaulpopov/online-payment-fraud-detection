@@ -1,15 +1,12 @@
 import json
 import logging
-import pickle
 import sys
 from contextlib import asynccontextmanager
 
 import lightgbm as lgb
-import torch
 from fastapi import FastAPI
 
 from src.app.routers import router
-from src.models.autoencoder import autoencoder_nn
 from src.paths import IMPUTER_SCALER_PATH, LGBM_MODEL_PATH, INFERENCE_PATH, NN_MODEL_PATH
 
 
@@ -26,13 +23,11 @@ async def lifespan(app: FastAPI):
         # Critical health check
         if not LGBM_MODEL_PATH.exists():
             raise FileNotFoundError("LightGBM model is not found.")
-        if not INFERENCE_PATH.exists() or not IMPUTER_SCALER_PATH.exists():
-            raise FileNotFoundError("Some of preprocessing objects not found.")
+        if not INFERENCE_PATH.exists():
+            raise FileNotFoundError("Meta information is missing.")
 
         # Read JSON
         inference_meta = json.loads(INFERENCE_PATH.read_text(encoding="utf-8"))
-        input_dim = inference_meta["input_dim"]
-        latent_dim = inference_meta["latent_dim"]
 
         # ----------- LGBM Side ----------
         model_lgbm = lgb.Booster(model_file=LGBM_MODEL_PATH)

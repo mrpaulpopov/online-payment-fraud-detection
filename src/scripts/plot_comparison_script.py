@@ -1,4 +1,4 @@
-# Can be launched locally
+# CAN BE LAUNCHED LOCALLY
 import mlflow
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -147,5 +147,5 @@ def main(title, *args):
     plt.show()
 
 if __name__ == "__main__":
-    main("Comparison of Pipelines", "e4d435c36cd042508e70dfffd3483d4e", "e7496a44e84548d5b893585777822594") # lgbm vs pytorch+lgbm
-    main("Optima Before / After", "bc9f057292314f1d9a2118797aaf3dad", "e4d435c36cd042508e70dfffd3483d4e") # pytorch+lgbm vs unoptimized
+    main("Comparison of Pipelines", "a0d134f8145a40fbbf67907dc6d63bce", "1b97778161e9417896aacb767b2a7cd5") # lgbm vs pytorch+lgbm
+    main("Optima Before / After", "5601aababdf544c0acf7f302fc829b80", "1b97778161e9417896aacb767b2a7cd5") # pytorch+lgbm vs unoptimized
