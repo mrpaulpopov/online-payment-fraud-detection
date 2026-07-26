@@ -12,7 +12,8 @@ from src.data.data_loader import load_data
 from src.data.split import train_split
 from src.paths import INFERENCE_PATH, CONFIG_PATH, LGBM_MODEL_PATH, NN_MODEL_PATH, CACHE_DIR
 from src.training.evaluation import evaluate_and_log_metrics, cross_validation, plot_shap_values, find_best_threshold
-from src.training.nn_data_preparation import pytorch_preprocessing, assign_anomaly_scores, pytorch_filtering_rows
+from src.training.nn_data_preparation import pytorch_preprocessing, assign_anomaly_scores, pytorch_filtering_rows, \
+    save_original_features_cols
 from src.training.plotting import plot_pr_curves, plot_density
 from src.training.train_lgbm import prepare_data_for_lgbm, training_lgbm
 from src.training.train_nn import training_nn, pytorch_anomaly_scores
@@ -40,6 +41,7 @@ def training_pipeline():
     X_train, y_train, X_val, y_val, X_test, y_test = train_split(X, y, config["train_split"])
     del X, y
     gc.collect()
+    save_original_features_cols(X_train)
 
     if use_autoencoder:
         # ------------ PyTorch side --------------

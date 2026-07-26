@@ -8,8 +8,8 @@ from src.app.services import process_payment
 import logging
 import time
 
-
 router = APIRouter()
+
 
 @router.get("/healthcheck")
 async def healthcheck_endpoint(response: Response, request: Request):
@@ -19,7 +19,6 @@ async def healthcheck_endpoint(response: Response, request: Request):
         "models": "ok"
     }
     is_healthy = True
-
 
     try:
         async with async_engine.connect() as connection:
@@ -33,13 +32,9 @@ async def healthcheck_endpoint(response: Response, request: Request):
         model_lgbm = request.app.state.model_lgbm
     except Exception as e:
         model_lgbm = None
-    try:
-        model_pytorch = request.app.state.model_pytorch
-    except Exception as e:
-        model_pytorch = None
 
-    if model_lgbm is None or model_pytorch is None:
-        logging.error("ML models are not loaded into memory")
+    if model_lgbm is None:
+        logging.error("ML model are not loaded into memory")
         health_status["models"] = "failed"
         is_healthy = False
 
@@ -49,21 +44,18 @@ async def healthcheck_endpoint(response: Response, request: Request):
     return {"status": "ok", "details": health_status}
 
 
-
-
-
-
 @router.post("/predict")
-async def predict_endpoint(data: Transaction, response: Response, request: Request, api_key: str = Depends(verify_api_key)):
+async def predict_endpoint(data: Transaction, response: Response, request: Request,
+                           api_key: str = Depends(verify_api_key)):
     logging.info("Prediction request received")
     start = time.time()
     model_lgbm = request.app.state.model_lgbm
-    inference_meta = request.app.state.inference_meta = None
+    inference_meta = request.app.state.inference_meta
 
     if model_lgbm is None:
         return {
             "status": "error",
-            "details": "ML models are not loaded into memory"
+            "details": "ML model is not loaded into memory"
         }
 
     if inference_meta is None:
@@ -73,10 +65,14 @@ async def predict_endpoint(data: Transaction, response: Response, request: Reque
         }
 
     try:
-        result = process_payment(data, inference_meta, model_lgbm)
+        transaction_dict = data.model_dump() # convert Pydantic to DataFrame
+        is_fraud, fraud_probability, action = process_payment(transaction_dict, inference_meta, model_lgbm)
         logging.info(f"Prediction completed in {time.time() - start:.4f}s")
     except HTTPException as e:
         raise e
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    return {"prediction": result}
+    # except Exception as e:
+    #     raise HTTPException(status_code=400, detail=str(e)) # TODO
+    return {"is_fraud": bool(is_fraud),
+            "fraud_probability": float(fraud_probability[0]), # explicitly convert types for all of 3 outputs
+            "action": str(action)
+            }

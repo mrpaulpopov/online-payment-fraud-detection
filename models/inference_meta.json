@@ -1,5 +1,5 @@
 {
-    "pytorch_features": {
+    "features": {
         "num_cols": [
             "TransactionAmt",
             "cnt_5m",

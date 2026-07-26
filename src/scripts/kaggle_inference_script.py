@@ -25,8 +25,8 @@ def main():
     # Read JSON
     inference_meta = json.loads(INFERENCE_PATH.read_text(encoding="utf-8"))
     best_threshold = inference_meta["best_threshold"]
-    original_features = inference_meta["pytorch_features"]["original_features"]
-    lgbm_str_cols = inference_meta["pytorch_features"]["all_str_cols"]
+    original_features = inference_meta["features"]["original_features"]
+    lgbm_str_cols = inference_meta["features"]["all_str_cols"]
 
     # Read Imputer, Scaler
     with IMPUTER_SCALER_PATH.open('rb') as f:

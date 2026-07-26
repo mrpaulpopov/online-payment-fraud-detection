@@ -101,18 +101,26 @@ def pytorch_preprocessing(X_train, X_val, X_test, y_train, config):
 
     # Saving columns information for inference
     inference_meta = json.loads(INFERENCE_PATH.read_text(encoding="utf-8"))
-    inference_meta["pytorch_features"] = {
+    inference_meta["features"].update({
         "num_cols": num_cols.tolist(),  # pandas indexes to list
         "str_cols": str_cols,  # is already list
         "all_str_cols": all_str_cols.tolist(),
-        "original_features": X_train.columns.tolist(),
         "final_pytorch_features": X_train_nn.columns.tolist(),
-    }
+    })
     INFERENCE_PATH.write_text(json.dumps(inference_meta, indent=4), encoding="utf-8")
     logging.info('PyTorch preprocessing finished and metadata saved')
 
 
     return X_train_nn, X_val_nn, X_test_nn
+
+def save_original_features_cols(X_train):
+    # Saving columns information for inference
+    inference_meta = json.loads(INFERENCE_PATH.read_text(encoding="utf-8"))
+    inference_meta["features"] = {
+        "original_features": X_train.columns.tolist(),
+    }
+    INFERENCE_PATH.write_text(json.dumps(inference_meta, indent=4), encoding="utf-8")
+    logging.info('Base features metadata saved')
 
 
 def pytorch_filtering_rows(X_train_nn, X_val_nn, y_train, y_val):

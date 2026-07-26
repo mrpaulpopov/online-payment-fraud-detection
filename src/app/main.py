@@ -7,7 +7,7 @@ import lightgbm as lgb
 from fastapi import FastAPI
 
 from src.app.routers import router
-from src.paths import IMPUTER_SCALER_PATH, LGBM_MODEL_PATH, INFERENCE_PATH, NN_MODEL_PATH
+from src.paths import LGBM_MODEL_PATH, INFERENCE_PATH
 
 
 logging.basicConfig(
@@ -29,7 +29,6 @@ async def lifespan(app: FastAPI):
         # Read JSON
         inference_meta = json.loads(INFERENCE_PATH.read_text(encoding="utf-8"))
 
-        # ----------- LGBM Side ----------
         model_lgbm = lgb.Booster(model_file=LGBM_MODEL_PATH)
 
 

@@ -12,7 +12,7 @@ for Inference АРІ I choose the baseline LightGBM pipeline.
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/training_data_flow_diagram_dark.svg">
   <source media="(prefers-color-scheme: light)" srcset="docs/diagrams/training_data_flow_diagram_light.svg">
-  <img alt="Training Data Flow Diagram" src="docs/diagrams/training_data_flow_diagram_light.svg" width="40%">
+  <img alt="Training Data Flow Diagram" src="docs/diagrams/training_data_flow_diagram_light.svg" width="49%">
 </picture>
 
 
@@ -88,7 +88,7 @@ However, if the business target is unreachable, mathematical threshold will be u
 It uses the f1-formula and gets a recall and a precision from the best F1-ratio.
 
 ### Predicted Probability Distribution (Density) Plot
-![probability_distribution_lgbm.png](docs/plots/probability_distribution_lgbm.png)
+![probability_distribution_lgbm.png](docs/plots/probability_distribution_baseline.png)
 This histogram visualizes how well the model separates the two classes by showing the distribution of predicted fraud probabilities for each class.
 Each histogram is normalized independently, so the area under each distribution equals 1.
 This plot helps visualize how well the model separates the two classes and where a decision threshold can be placed.
@@ -108,13 +108,13 @@ for Inference АРІ I choose the baseline LightGBM pipeline.
 
 
 
-Accuracy metric is pretty useless in this project: dataset has only 3% of fraud. It means that model that always returns 'no fraud' will get 97% of accuracy.
-Precision = 1 - False Positive Rate, percentage of amount without false alerts.
-Recall = True Positive Rate, percentage of real fraud detection.
-ROC-AUC = True Positive Rate / False Positive Rate, how the model classifies the data. 0.5 means random selection, 0.9+	is good.
-F1 - it's a Precision and Recall harmonic ratio. However, it depends on fixed threshold value.
-PR-AUC - it's a square under the curve, it doesn't depend on threshold value.
-Recall@FPR - 'How many fraud alerts we detect if we allow only 1% of false alarms?'. It uses `business_fp_target`.
+- Accuracy metric is pretty useless in this project: dataset has only 3% of fraud. It means that model that always returns 'no fraud' will get 97% of accuracy.
+- Precision = 1 - False Positive Rate, percentage of amount without false alerts.
+- Recall = True Positive Rate, percentage of real fraud detection.
+- ROC-AUC = True Positive Rate / False Positive Rate, how the model classifies the data. 0.5 means random selection, 0.9+	is good.
+- F1 - it's a Precision and Recall harmonic ratio. However, it depends on fixed threshold value.
+- PR-AUC - it's a square under the curve, it doesn't depend on threshold value.
+- Recall@FPR - 'How many fraud alerts we detect if we allow only 1% of false alarms?'. It uses `business_fp_target`.
 
 ![pr_curves_baseline.png](docs/plots/pr_curves_baseline.png)
 

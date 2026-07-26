@@ -10,14 +10,14 @@ from src.pipelines.inference_pipeline import inference_pipeline
 
 
 def apply_business_rules(transaction: dict):
-    if transaction['amount'] > 500000 and transaction['is_new_device']:
+    if transaction['TransactionAmt'] > 500000 and transaction['is_new_device_uid1'] == 1:
         return True, "Blocked by Business Rule: Huge amount from new device"
 
     return False, ""
 
 
 def graceful_degradation(transaction: dict):
-    if transaction['amount'] > 10_000_000:
+    if transaction['TransactionAmt'] > 10_000_000:
         return True
 
     return False
@@ -31,7 +31,7 @@ def process_payment(input_transaction: dict, inference_meta, model_lgbm):
     if business_decision is True:
         action = f"Fraud (Blocked by Business Rules: {rule_reason})"
         # return transaction_id, fraud_probability, is_fraud, action # TODO
-        return fraud_probability, True, action
+        return True, fraud_probability, action
 
     try:
         # features = extract_features(transaction) # TODO
@@ -49,4 +49,4 @@ def process_payment(input_transaction: dict, inference_meta, model_lgbm):
             action = "Legit (Passed Fallback rules)"
 
     # return transaction_id, fraud_probability, is_fraud, action # TODO
-    return fraud_probability, is_fraud, action
+    return is_fraud, fraud_probability, action
