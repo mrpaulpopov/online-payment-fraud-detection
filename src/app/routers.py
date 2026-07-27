@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Response, status, Request
 from sqlalchemy import text
 
 from src.app.core.data_loader_api import async_engine
-from src.app.schemas import Transaction
+from src.app.schemas import Transaction, PredictionResponse
 from src.app.dependencies import verify_api_key
 from src.app.services import process_payment
 import logging
@@ -44,8 +44,8 @@ async def healthcheck_endpoint(response: Response, request: Request):
     return {"status": "ok", "details": health_status}
 
 
-@router.post("/predict")
-async def predict_endpoint(data: Transaction, response: Response, request: Request,
+@router.post("/predict", response_model=PredictionResponse)
+def predict_endpoint(data: Transaction, request: Request,
                            api_key: str = Depends(verify_api_key)):
     logging.info("Prediction request received")
     start = time.time()
@@ -53,26 +53,23 @@ async def predict_endpoint(data: Transaction, response: Response, request: Reque
     inference_meta = request.app.state.inference_meta
 
     if model_lgbm is None:
-        return {
-            "status": "error",
-            "details": "ML model is not loaded into memory"
-        }
+        raise HTTPException(status_code=503, detail="ML model is not loaded into memory")
 
     if inference_meta is None:
-        return {
-            "status": "error",
-            "details": "Insufficient metadata for an inference."
-        }
+        raise HTTPException(status_code=503, detail="Insufficient metadata for an inference")
 
     try:
         transaction_dict = data.model_dump() # convert Pydantic to DataFrame
-        is_fraud, fraud_probability, action = process_payment(transaction_dict, inference_meta, model_lgbm)
-        logging.info(f"Prediction completed in {time.time() - start:.4f}s")
+        is_fraud, fraud_probability, reason = process_payment(transaction_dict, inference_meta, model_lgbm)
+        latency = round(float((time.time() - start))*1000, 2)
+        logging.info(f"Prediction completed in {latency:.8f}s")
     except HTTPException as e:
         raise e
     # except Exception as e:
     #     raise HTTPException(status_code=400, detail=str(e)) # TODO
     return {"is_fraud": bool(is_fraud),
-            "fraud_probability": float(fraud_probability[0]), # explicitly convert types for all of 3 outputs
-            "action": str(action)
+            "fraud_probability": float(fraud_probability) if fraud_probability is not None else None,
+            "action": "BLOCK" if is_fraud else "APPROVE",
+            "reason": str(reason), # explicitly convert types for all of 4 outputs
+            "latency_ms": float(latency)
             }

@@ -1,4 +1,13 @@
 from pydantic import BaseModel
+
+class PredictionResponse(BaseModel):
+    is_fraud: bool
+    fraud_probability: float | None
+    action: str
+    reason: str
+    latency_ms: float
+
+
 # TransactionID: int                    - обязательное поле с int
 # TransactionID: int | None             - обязательное поле с int или None
 # TransactionID: int | None = None      - необязательное поле с int или None
