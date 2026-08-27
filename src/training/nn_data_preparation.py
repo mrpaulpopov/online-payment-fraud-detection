@@ -10,7 +10,7 @@ from sklearn.preprocessing import StandardScaler
 from src.paths import IMPUTER_SCALER_PATH, INFERENCE_PATH
 
 
-def pytorch_preprocessing(X_train, X_val, X_test, y_train, config):
+def pytorch_preprocessing(X_train, X_val, X_test, y_train, config) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     '''
     High cardinality filtering.
     '''
@@ -123,7 +123,7 @@ def save_original_features_cols(X_train):
     logging.info('Base features metadata saved')
 
 
-def pytorch_filtering_rows(X_train_nn, X_val_nn, y_train, y_val):
+def pytorch_filtering_rows(X_train_nn, X_val_nn, y_train, y_val) -> tuple[pd.DataFrame, pd.DataFrame]:
     '''
     For training the Autoencoder, we need only normal transactions (isFraud=0 rows).
     '''
@@ -135,7 +135,7 @@ def pytorch_filtering_rows(X_train_nn, X_val_nn, y_train, y_val):
 
 
 
-def assign_anomaly_scores(X_train, X_val, X_test, train_scores, val_scores, test_scores):
+def assign_anomaly_scores(X_train, X_val, X_test, train_scores, val_scores, test_scores) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     X_train = X_train.copy()
     X_val = X_val.copy()
     X_test = X_test.copy()

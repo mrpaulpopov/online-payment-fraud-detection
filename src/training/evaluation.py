@@ -94,7 +94,7 @@ def plot_shap_values(model, X_val, run_id):
     logging.info("Shap summary plots saved.")
 
 
-def find_best_threshold(y_val, y_val_prob, business_fp_target, threshold_strategy, run_id):
+def find_best_threshold(y_val, y_val_prob, business_fp_target, threshold_strategy, run_id) -> tuple[float, float, float]:
     '''
     Threshold управляет переводом из probability 0.0-1.0 в decision 0-1 (not fraud, legit / fraud, to block).
     С какого момента probability считается fraud?

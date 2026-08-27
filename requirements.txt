@@ -26,3 +26,4 @@ optuna~=4.9.0
 sympy~=1.14.0
 optuna-integration
 asyncpg
+redis>=5.0.0

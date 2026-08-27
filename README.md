@@ -151,7 +151,10 @@ _Predicted Probability Distribution Plot AFTER optimization / Predicted Probabil
 
 _Predicted Probability Distribution Plot AFTER optimization / Predicted Probability Distribution Plot BEFORE optimization._
 
-
+## PSI
+Basic PSI monitoring was developed by simple script which calculates PSI between train and test data, 
+and then prints top affecting features (in case of PSI > 0.1).
+It helps to monitor a degradation of the model in production.
 
 ## API
 This is FastAPI interface which uses **lifespan** pipeline. With launch, service should load into a memory all the data from disk for an inference: models weights, meta-information from json.

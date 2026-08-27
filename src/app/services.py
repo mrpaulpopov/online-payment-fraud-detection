@@ -9,21 +9,21 @@ from src.paths import INFERENCE_PATH
 from src.pipelines.inference_pipeline import inference_pipeline
 
 
-def apply_business_rules(transaction: dict):
+def apply_business_rules(transaction: dict) -> tuple[bool, str]:
     if transaction['TransactionAmt'] > 500000 and transaction['is_new_device_uid1'] == 1:
         return True, "Blocked by Business Rule: Huge amount from new device"
 
     return False, ""
 
 
-def graceful_degradation(transaction: dict):
+def graceful_degradation(transaction: dict) -> bool:
     if transaction['TransactionAmt'] > 10_000_000:
         return True
 
     return False
 
 
-def process_payment(input_transaction: dict, inference_meta, model_lgbm):
+def process_payment(input_transaction: dict, inference_meta, model_lgbm) -> tuple[bool, float, str]:
     fraud_probability = None
     is_fraud = None
     business_decision, rule_reason = apply_business_rules(input_transaction)

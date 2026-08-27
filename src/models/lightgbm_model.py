@@ -1,7 +1,11 @@
 import lightgbm as lgb
+from typing import Any
 
 
-def lightgbm_model(train_data, valid_data, params):
+def lightgbm_model(
+        train_data: lgb.Dataset,
+        valid_data: lgb.Dataset,
+        params: dict[str, Any]) -> lgb.Booster:
     model = lgb.train(
         params,
         train_data,

@@ -1,7 +1,13 @@
 from torch import nn
 
 
-def autoencoder_nn(input_dim, latent_dim):
+def autoencoder_nn(input_dim: int, latent_dim: int) -> nn.Sequential:
+    '''
+    Autoencoder network.
+    :param input_dim: Input dimensions (features  count).
+    :param latent_dim: Bottleneck dimension.
+    :return:
+    '''
     model = nn.Sequential(
         # Encode
         nn.Linear(input_dim, 1024),

@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Response, status, Request
 from sqlalchemy import text
 
 from src.app.core.data_loader_api import async_engine
+from src.app.redis_utils import get_and_update_aggregates
 from src.app.schemas import Transaction, PredictionResponse
 from src.app.dependencies import verify_api_key
 from src.app.services import process_payment
@@ -45,12 +46,13 @@ async def healthcheck_endpoint(response: Response, request: Request):
 
 
 @router.post("/predict", response_model=PredictionResponse)
-def predict_endpoint(data: Transaction, request: Request,
+async def predict_endpoint(data: Transaction, request: Request,
                            api_key: str = Depends(verify_api_key)):
     logging.info("Prediction request received")
     start = time.time()
     model_lgbm = request.app.state.model_lgbm
     inference_meta = request.app.state.inference_meta
+    redis_client = request.app.state.redis
 
     if model_lgbm is None:
         raise HTTPException(status_code=503, detail="ML model is not loaded into memory")
@@ -60,6 +62,20 @@ def predict_endpoint(data: Transaction, request: Request,
 
     try:
         transaction_dict = data.model_dump() # convert Pydantic to DataFrame
+
+        # ========== REDIS SIDE ============
+        cnt_5m, cnt_1h, cnt_24h, cnt_7d = await get_and_update_aggregates(
+            redis_client,
+            uid=data.uid1,
+            transaction_id=data.TransactionID
+        )
+
+        transaction_dict["cnt_5m"] = cnt_5m
+        transaction_dict["cnt_1h"] = cnt_1h
+        transaction_dict["cnt_24h"] = cnt_24h
+        transaction_dict["cnt_7d"] = cnt_7d
+        # ==================================
+
         is_fraud, fraud_probability, reason = process_payment(transaction_dict, inference_meta, model_lgbm)
         latency = round(float((time.time() - start))*1000, 2)
         logging.info(f"Prediction completed in {latency:.8f}s")

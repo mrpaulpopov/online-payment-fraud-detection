@@ -1,20 +1,19 @@
+import copy
 import gc
 import json
 import logging
-import copy
 
 import numpy as np
 import optuna
 import torch
-from optuna.testing import trials
 from torch import nn, optim
-from torch.utils.data import TensorDataset, DataLoader
-from src.paths import NN_MODEL_PATH, INFERENCE_PATH
+
 from src.models.autoencoder import autoencoder_nn
+from src.paths import NN_MODEL_PATH, INFERENCE_PATH
 from src.training.nn_utils import EarlyStopping, build_dataloader
 
 
-def train_nn_loop(model, train_loader, val_loader, optimizer, loss_fn, N_EPOCHS, trial=None):
+def train_nn_loop(model: nn.Sequential, train_loader, val_loader, optimizer, loss_fn, N_EPOCHS, trial=None):
     '''
     Child function of training_nn.
     '''
@@ -137,9 +136,13 @@ def training_nn(X_train_short, X_val_short, pytorch_params, trial=None):
     return model, val_loss
 
 
-def pytorch_anomaly_scores(model, X_processed, batch_size=1024):
+def pytorch_anomaly_scores(model, X_processed, batch_size=1024) -> np.array:
     '''
     Inference function.
+    :param model: Ready PyTorch-model.
+    :param X_processed: Dataset
+    :param batch_size:
+    :return:
     '''
     device = next(model.parameters()).device  # get first element of the iterator (parameters of the model)
 
