@@ -2,10 +2,12 @@ import json
 import logging
 import sys
 from contextlib import asynccontextmanager
-
+from sqlalchemy import text
 import lightgbm as lgb
 from fastapi import FastAPI
 
+from src.app.cache_warmer import warm_up_redis
+from src.app.core.data_loader_api import async_engine
 from src.app.routers import router
 from src.paths import LGBM_MODEL_PATH, INFERENCE_PATH
 
@@ -25,6 +27,7 @@ async def lifespan(app: FastAPI):
     global redis_client
     redis_client = redis.Redis(host='redis', port=6379, db=0, decode_responses=True)
     await redis_client.ping()
+    app.state.redis = redis_client
     logging.info("Successfully connected to Redis")
 
     logging.info("Starting up: Loading ML model...")
@@ -48,6 +51,21 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logging.critical(f"Failed to load the model during startup: {e}")
         sys.exit(1)
+
+
+    # -------------------------------
+    # -------- Cache Warming --------
+    # -------------------------------
+    try:
+        db_connection = await async_engine.connect()
+        await warm_up_redis(redis_client, db_connection)
+        await db_connection.close()
+    except Exception as e:
+        logging.error(f"Error during caching warm-up: {e}")
+
+
+
+
     yield
     logging.info("Shutting down: Flushing memory...")
     app.state.model_lgbm = None
