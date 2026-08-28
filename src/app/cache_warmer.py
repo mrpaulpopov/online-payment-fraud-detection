@@ -67,11 +67,11 @@ async def warm_up_redis(redis_client, db_connection):
         pipe.sadd(dev_s_key, device_sig)
         pipe.zadd(dev_z_key, {device_sig: tx_time})
 
-        # TTL
-        pipe.expire(tx_key, WINDOW_7D)
-        pipe.expire(amt_key, WINDOW_1H)  # amt_1h живет только час!
-        pipe.expire(dev_s_key, WINDOW_24H * 180)
-        pipe.expire(dev_z_key, WINDOW_24H * 180)
+        # TTL (OFF for debug)
+        # pipe.expire(tx_key, WINDOW_7D)
+        # pipe.expire(amt_key, WINDOW_1H)  # amt_1h живет только час!
+        # pipe.expire(dev_s_key, WINDOW_24H * 180)
+        # pipe.expire(dev_z_key, WINDOW_24H * 180)
 
         commands_count += 8
         if commands_count >= BATCH_SIZE:

@@ -13,13 +13,13 @@ from src.paths import LGBM_MODEL_PATH, INFERENCE_PATH
 
 import redis.asyncio as redis
 
-
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s | %(levelname)s | %(message)s"
 )
 
 redis_client = None
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -43,7 +43,6 @@ async def lifespan(app: FastAPI):
 
         model_lgbm = lgb.Booster(model_file=LGBM_MODEL_PATH)
 
-
         app.state.model_lgbm = model_lgbm
         app.state.inference_meta = inference_meta
 
@@ -51,7 +50,6 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logging.critical(f"Failed to load the model during startup: {e}")
         sys.exit(1)
-
 
     # -------------------------------
     # -------- Cache Warming --------
@@ -63,14 +61,12 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logging.error(f"Error during caching warm-up: {e}")
 
-
-
-
     yield
     logging.info("Shutting down: Flushing memory...")
     app.state.model_lgbm = None
     app.state.inference_meta = None
     await redis_client.close()
+
 
 app = FastAPI(title="Fraud Detection API", lifespan=lifespan)
 app.include_router(router)
