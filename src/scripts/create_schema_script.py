@@ -1,5 +1,6 @@
-import psycopg2
 import sys
+
+import psycopg2
 
 # Conversion PostgreSQL -> Python/Pydantic
 PG_TO_PY = {

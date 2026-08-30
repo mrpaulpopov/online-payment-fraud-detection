@@ -1,15 +1,15 @@
 import json
-
-from fastapi import APIRouter, Depends, HTTPException, Response, status, Request
-from sqlalchemy import text
-
-from src.app.core.data_loader_api import async_engine
-from src.redis.redis_utils import get_and_update_aggregates
-from src.app.schemas import Transaction, PredictionResponse
-from src.app.dependencies import verify_api_key
-from src.app.services import process_payment
 import logging
 import time
+
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from sqlalchemy import text
+
+from src.app.dependencies import verify_api_key
+from src.app.schemas import PredictionResponse, Transaction
+from src.app.services import process_payment
+from src.data.data_loader_api import async_engine
+from src.redis.redis_utils import get_and_update_aggregates
 
 router = APIRouter()
 
@@ -19,21 +19,24 @@ async def healthcheck_endpoint(response: Response, request: Request):
     health_status = {
         "api": "ok",
         "database": "ok",
-        "models": "ok"
+        "models": "ok",
+        "redis": "ok"
     }
     is_healthy = True
 
+    # database
     try:
         async with async_engine.connect() as connection:
-            await connection.execute(text(f"SELECT 1;"))
+            await connection.execute(text("SELECT 1;"))
     except Exception as e:
         logging.error(f"Database healthcheck failed: {e}")
         health_status["database"] = "failed"
         is_healthy = False
 
+    # models
     try:
         model_lgbm = request.app.state.model_lgbm
-    except Exception as e:
+    except Exception:
         model_lgbm = None
 
     if model_lgbm is None:
@@ -41,6 +44,16 @@ async def healthcheck_endpoint(response: Response, request: Request):
         health_status["models"] = "failed"
         is_healthy = False
 
+    # redis
+    redis_client = request.app.state.redis
+    try:
+        await redis_client.ping()
+    except Exception as e:
+        logging.error(f"Redis connection failed: {e}")
+        health_status["redis"] = "failed"
+        is_healthy = False
+
+    # conclusion
     if not is_healthy:
         response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
         return {"status": "error", "details": health_status}
@@ -94,7 +107,7 @@ async def predict_endpoint(data: Transaction, request: Request,
         # ======= REDIS: SAVE TO SQL ============
         await redis_client.rpush("manual_tx_queue", json.dumps(transaction_dict))
 
-        latency = round(float((time.time() - start)) * 1000, 2)
+        latency = round(float(time.time() - start) * 1000, 2)
         logging.info(f"Prediction completed in {latency:.8f}s")
     except HTTPException as e:
         raise e

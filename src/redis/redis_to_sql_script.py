@@ -3,11 +3,10 @@ import json
 import logging
 import sys
 
-from sqlalchemy import text
 import redis.asyncio as redis
+from sqlalchemy import text
 
-
-from src.app.core.data_loader_api import async_engine
+from src.data.data_loader_api import async_engine
 
 logging.basicConfig(
     level=logging.INFO,

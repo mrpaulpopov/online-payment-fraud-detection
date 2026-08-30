@@ -192,6 +192,7 @@ Importantly, the last step before the pytorch inference would be reindexing the 
 
 
 ## Fraud Test
+```
 {
   "is_fraud": true,
   "fraud_probability": 0.9113,
@@ -199,8 +200,10 @@ Importantly, the last step before the pytorch inference would be reindexing the 
   "reason": "Fraud (Blocked by ML, probability: 91.1%)",
   "latency_ms": 79.01
 }
+```
 
 ## Legit Test
+```
 {
   "is_fraud": false,
   "fraud_probability": 0.0053,
@@ -208,6 +211,7 @@ Importantly, the last step before the pytorch inference would be reindexing the 
   "reason": "Legit (Passed ML)",
   "latency_ms": 77.58
 }
+```
 
 
 

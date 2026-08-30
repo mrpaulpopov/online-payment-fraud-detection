@@ -1,5 +1,5 @@
-import pandas as pd
 import logging
+
 
 def train_split(X, y, config):
     train_size = config['train_size']

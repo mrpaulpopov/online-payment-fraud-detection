@@ -1,5 +1,6 @@
-import lightgbm as lgb
 from typing import Any
+
+import lightgbm as lgb
 
 
 def lightgbm_model(

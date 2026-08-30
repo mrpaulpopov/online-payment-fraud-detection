@@ -5,7 +5,7 @@ import sys
 import lightgbm as lgb
 import pandas as pd
 
-from src.paths import INFERENCE_PATH, LGBM_MODEL_PATH, CACHE_DIR
+from src.paths import CACHE_DIR, INFERENCE_PATH, LGBM_MODEL_PATH
 from src.pipelines.training_pipeline import evaluation_pipeline
 
 logging.basicConfig(

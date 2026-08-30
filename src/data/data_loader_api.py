@@ -1,7 +1,8 @@
 # asynced version
 import os
+
+from dotenv import find_dotenv, load_dotenv
 from sqlalchemy.ext.asyncio import create_async_engine
-from dotenv import load_dotenv, find_dotenv
 
 load_dotenv(find_dotenv())
 

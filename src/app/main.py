@@ -2,15 +2,13 @@ import json
 import logging
 import sys
 from contextlib import asynccontextmanager
-from sqlalchemy import text
+
 import lightgbm as lgb
+import redis.asyncio as redis
 from fastapi import FastAPI
 
-from src.app.core.data_loader_api import async_engine
 from src.app.routers import router
-from src.paths import LGBM_MODEL_PATH, INFERENCE_PATH
-
-import redis.asyncio as redis
+from src.paths import INFERENCE_PATH, LGBM_MODEL_PATH
 
 logging.basicConfig(
     level=logging.INFO,

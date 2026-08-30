@@ -1,9 +1,10 @@
 # CAN BE LAUNCHED LOCALLY
-import mlflow
+import random
+
 import matplotlib.pyplot as plt
+import mlflow
 import seaborn as sns
 import yaml
-import random
 
 from src.paths import CONFIG_PATH
 

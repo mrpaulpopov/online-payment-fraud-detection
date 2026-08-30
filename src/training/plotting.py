@@ -1,7 +1,8 @@
 import matplotlib.pyplot as plt
-from sklearn.metrics import precision_recall_curve, average_precision_score
 import mlflow
 import seaborn as sns
+from sklearn.metrics import average_precision_score, precision_recall_curve
+
 from src.paths import PLOTS_DIR
 
 

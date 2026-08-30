@@ -1,8 +1,9 @@
 import asyncio
 import logging
+
 import redis.asyncio as redis
 
-from src.app.core.data_loader_api import async_engine
+from src.data.data_loader_api import async_engine
 from src.redis.warming_sql_queries import fetch_7d_transactions, fetch_lifetime_stats
 
 logging.basicConfig(

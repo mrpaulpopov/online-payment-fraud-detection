@@ -1,5 +1,5 @@
 import torch
-from torch.utils.data import TensorDataset, DataLoader
+from torch.utils.data import DataLoader, TensorDataset
 
 
 class EarlyStopping:

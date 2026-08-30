@@ -1,19 +1,19 @@
+import json
 import logging
 import sys
 
-import optuna
-import lightgbm as lgb
 import mlflow
-import json
+import optuna
 import yaml
-from sklearn.metrics import average_precision_score
 
 from src.data.data_loader import load_data
 from src.data.split import train_split
 from src.paths import CONFIG_PATH
-from src.training.train_lgbm import prepare_data_for_lgbm
+from src.training.nn_data_preparation import (
+    pytorch_filtering_rows,
+    pytorch_preprocessing,
+)
 from src.training.train_nn import training_nn
-from src.training.nn_data_preparation import pytorch_preprocessing, pytorch_filtering_rows
 
 logging.basicConfig(
     level=logging.INFO,

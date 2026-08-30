@@ -1,12 +1,11 @@
-import sys
-
-from sqlalchemy import create_engine
-import psycopg2
-import pandas as pd
-import os
-import time
-from dotenv import load_dotenv
 import logging
+import os
+import sys
+import time
+
+import pandas as pd
+from dotenv import load_dotenv
+from sqlalchemy import create_engine
 
 
 def load_data(table_name):
@@ -45,7 +44,7 @@ def load_data(table_name):
         transaction_ids = None
 
     # 2. Drop useless columns
-    X = df.drop(columns=["isFraud", "TransactionID", "TransactionDT", #
+    X = df.drop(columns=["isFraud", "TransactionID", "TransactionDT",
                          "id_24", "id_25", "id_07", "id_08", "id_21", "id_26", "id_27", # trash values
                          "id_22", "id_23", "dist2", "D7", "id_18",                      # trash values
                          "uid1", "card1"], errors='ignore')     # overfitting

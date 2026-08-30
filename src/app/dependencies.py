@@ -1,4 +1,4 @@
-from fastapi import HTTPException, Header
+from fastapi import Header, HTTPException
 
 
 def verify_api_key(x_api_key: str = Header(...)):

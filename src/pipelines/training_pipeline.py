@@ -4,19 +4,33 @@ import logging
 import os
 import sys
 
-import lightgbm as lgb
 import mlflow
 import yaml
 
 from src.data.data_loader import load_data
 from src.data.split import train_split
-from src.paths import INFERENCE_PATH, CONFIG_PATH, LGBM_MODEL_PATH, NN_MODEL_PATH, CACHE_DIR
-from src.training.evaluation import evaluate_and_log_metrics, cross_validation, plot_shap_values, find_best_threshold
-from src.training.nn_data_preparation import pytorch_preprocessing, assign_anomaly_scores, pytorch_filtering_rows, \
-    save_original_features_cols
-from src.training.plotting import plot_pr_curves, plot_density
+from src.paths import (
+    CACHE_DIR,
+    CONFIG_PATH,
+    INFERENCE_PATH,
+    LGBM_MODEL_PATH,
+    NN_MODEL_PATH,
+)
+from src.training.evaluation import (
+    cross_validation,
+    evaluate_and_log_metrics,
+    find_best_threshold,
+    plot_shap_values,
+)
+from src.training.nn_data_preparation import (
+    assign_anomaly_scores,
+    pytorch_filtering_rows,
+    pytorch_preprocessing,
+    save_original_features_cols,
+)
+from src.training.plotting import plot_density, plot_pr_curves
 from src.training.train_lgbm import prepare_data_for_lgbm, training_lgbm
-from src.training.train_nn import training_nn, pytorch_anomaly_scores
+from src.training.train_nn import pytorch_anomaly_scores, training_nn
 
 logging.basicConfig(
     level=logging.INFO,
@@ -113,7 +127,8 @@ def evaluation_pipeline(model_lgbm, X_train, y_train, X_val, y_val, X_test, y_te
     mlflow.set_tracking_uri(tracking_uri)
 
     y_val_prob = model_lgbm.predict(X_val, num_iteration=model_lgbm.best_iteration)  # probability from 0.0 to 1.0
-    final_threshold, business_thr, f1_thr = find_best_threshold(y_val, y_val_prob, business_fp_target, threshold_strategy, run_id)
+    final_threshold, business_thr, f1_thr = find_best_threshold(y_val, y_val_prob, business_fp_target,
+                                                                threshold_strategy, run_id)
     plot_density(y_val, y_val_prob, run_id, business_thr, f1_thr)
     plot_pr_curves(y_val, y_val_prob, run_id, title_prefix="Autoencoder+LightGBM Validation")
 

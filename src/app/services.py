@@ -1,11 +1,6 @@
-import json
-import time
-from fastapi import APIRouter, Depends, HTTPException, Response, status, Request
 
-import yaml
-from fastapi import HTTPException
 import logging
-from src.paths import INFERENCE_PATH
+
 from src.pipelines.inference_pipeline import inference_pipeline
 
 
@@ -39,7 +34,7 @@ def process_payment(transaction: dict, inference_meta, model_lgbm) -> tuple[str,
         else:
             reason = "Legit (Passed ML)"
     except Exception as e:
-        logging.error(f"ML Pipeline failed: {str(e)}. Falling back to Graceful Degradation.")
+        logging.error(f"ML Pipeline failed: {e!s}. Falling back to Graceful Degradation.")
         is_fraud = graceful_degradation(transaction)
         if is_fraud is True:
             reason = "Fraud (Blocked by Fallback rules)"

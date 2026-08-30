@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 
+
 class PredictionResponse(BaseModel):
     is_fraud: bool
     fraud_probability: float | None

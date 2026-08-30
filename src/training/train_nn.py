@@ -9,7 +9,7 @@ import torch
 from torch import nn, optim
 
 from src.models.autoencoder import autoencoder_nn
-from src.paths import NN_MODEL_PATH, INFERENCE_PATH
+from src.paths import INFERENCE_PATH, NN_MODEL_PATH
 from src.training.nn_utils import EarlyStopping, build_dataloader
 
 
@@ -92,7 +92,7 @@ def train_nn_loop(model: nn.Sequential, train_loader, val_loader, optimizer, los
             best_model_weights = copy.deepcopy(model.state_dict()) # copy weights only if new val_loss is lower
         early_stopping(val_loss)
         if early_stopping.early_stop:
-            logging.info(f'Early stopping. Stop training')
+            logging.info('Early stopping. Stop training')
             break
 
     gc.collect()

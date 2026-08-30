@@ -1,19 +1,14 @@
-import gc
+import json
+import logging
 import pickle
 import sys
+import time
 
 import lightgbm as lgb
-from sympy.stats.rv import probability
+import pandas as pd
 
 from src.data.data_loader import load_data
-from src.data.split import train_split
-from src.models.autoencoder import autoencoder_nn
-from src.paths import IMPUTER_SCALER_PATH, LGBM_MODEL_PATH, INFERENCE_PATH
-import json
-import torch
-import time
-import pandas as pd
-import logging
+from src.paths import IMPUTER_SCALER_PATH, INFERENCE_PATH, LGBM_MODEL_PATH
 
 logging.basicConfig(
     level=logging.INFO,

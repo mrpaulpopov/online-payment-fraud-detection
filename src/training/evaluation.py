@@ -1,26 +1,26 @@
 import json
-import os
+import logging
+import time
 
+import lightgbm as lgb
+import matplotlib.pyplot as plt
 import mlflow
-import seaborn as sns
+import numpy as np
+import pandas as pd
+import shap
 from sklearn.metrics import (
     accuracy_score,
+    average_precision_score,
+    f1_score,
+    precision_recall_curve,
     precision_score,
     recall_score,
-    f1_score,
     roc_auc_score,
     roc_curve,
-    average_precision_score, precision_recall_curve,
 )
-import time
-import pandas as pd
 from sklearn.model_selection import StratifiedKFold
-import lightgbm as lgb
-import numpy as np
-import shap
-import logging
-import matplotlib.pyplot as plt
-from src.paths import PLOTS_DIR, INFERENCE_PATH
+
+from src.paths import INFERENCE_PATH, PLOTS_DIR
 
 
 def evaluate_and_log_metrics(model, X, y, best_threshold, target_fpr, run_id, prefix=None):
