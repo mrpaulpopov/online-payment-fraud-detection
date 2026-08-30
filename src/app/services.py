@@ -23,32 +23,29 @@ def graceful_degradation(transaction: dict) -> bool:
     return False
 
 
-def process_payment(input_transaction: dict, inference_meta, model_lgbm) -> tuple[bool, float, str]:
+def process_payment(transaction: dict, inference_meta, model_lgbm) -> tuple[str, bool, float, str]:
     fraud_probability = None
     is_fraud = None
-    business_decision, rule_reason = apply_business_rules(input_transaction)
+    business_decision, rule_reason = apply_business_rules(transaction)
 
     if business_decision is True:
         reason = f"Fraud (Blocked by Business Rules: {rule_reason})"
-        # return transaction_id, fraud_probability, is_fraud, reason # TODO
-        return True, fraud_probability, reason
+        return str(transaction["TransactionID"]), True, fraud_probability, reason
 
     try:
-        # features = extract_features(transaction) # TODO
-        fraud_probability, is_fraud = inference_pipeline(input_transaction, inference_meta, model_lgbm)
+        fraud_probability, is_fraud = inference_pipeline(transaction, inference_meta, model_lgbm)
         if is_fraud:
             reason = f"Fraud (Blocked by ML, probability: {(fraud_probability[0])*100:.1f}%)"
         else:
             reason = "Legit (Passed ML)"
     except Exception as e:
         logging.error(f"ML Pipeline failed: {str(e)}. Falling back to Graceful Degradation.")
-        is_fraud = graceful_degradation(input_transaction)
+        is_fraud = graceful_degradation(transaction)
         if is_fraud is True:
             reason = "Fraud (Blocked by Fallback rules)"
         else:
             reason = "Legit (Passed Fallback rules)"
 
-    # return transaction_id, fraud_probability, is_fraud, reason # TODO
     if fraud_probability is not None:
         fraud_probability = round(fraud_probability[0], 4)
-    return is_fraud, fraud_probability, reason
+    return str(transaction["TransactionID"]), is_fraud, fraud_probability, reason

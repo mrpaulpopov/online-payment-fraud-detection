@@ -1,6 +1,17 @@
+import asyncio
 import logging
+import redis.asyncio as redis
 
-from src.app.core.warming_sql_queries import fetch_7d_transactions, fetch_lifetime_stats
+from src.app.core.data_loader_api import async_engine
+from src.redis.warming_sql_queries import fetch_7d_transactions, fetch_lifetime_stats
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s | %(levelname)s | %(message)s"
+)
+
+redis_client = None
+
 
 BATCH_SIZE = 5000
 WINDOW_7D = 604800
@@ -83,3 +94,19 @@ async def warm_up_redis(redis_client, db_connection):
 
     await redis_client.set("cache_status:warmed", "1")
     logging.info("Cache Warming completed successfully!")
+
+
+async def main():
+    redis_client = redis.Redis(host='redis', port=6379, db=0, decode_responses=True)
+    db_connection = await async_engine.connect()
+
+    try:
+        await warm_up_redis(redis_client, db_connection)
+    except Exception as e:
+        logging.error(f"Error during caching warm-up: {e}")
+    finally:
+        await db_connection.close()
+        await redis_client.aclose()
+
+if __name__ == '__main__':
+    asyncio.run(main())

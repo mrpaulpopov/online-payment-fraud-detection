@@ -70,6 +70,19 @@ services:
     volumes:
       - redis_data:/data
 
+  cache-warmer:
+    build: .
+    command: python -m src.redis.cache_warmer
+    depends_on:
+      redis:
+        condition: service_started
+      db:
+        condition: service_started
+    env_file:
+      - .env
+    environment:
+      POSTGRES_HOST: db
+
   api-service:
     build:
       context: .
@@ -84,6 +97,10 @@ services:
       - ./models:/app/models
     depends_on:
       training:
+        condition: service_completed_successfully
+      redis:
+        condition: service_started
+      cache-warmer:
         condition: service_completed_successfully
 
 volumes:

@@ -1,5 +1,7 @@
 import gc
 import pickle
+import sys
+
 import lightgbm as lgb
 from sympy.stats.rv import probability
 
@@ -15,7 +17,9 @@ import logging
 
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s | %(levelname)s | %(message)s"
+    format="%(asctime)s | %(levelname)s | %(message)s",
+    stream=sys.stdout
+
 )
 
 def main():

@@ -188,6 +188,37 @@ Importantly, the last step before the pytorch inference would be reindexing the 
 
 ## Inference pipeline
 
+
+
+
+## Fraud Test
+{
+  "is_fraud": true,
+  "fraud_probability": 0.9113,
+  "action": "BLOCK",
+  "reason": "Fraud (Blocked by ML, probability: 91.1%)",
+  "latency_ms": 79.01
+}
+
+## Legit Test
+{
+  "is_fraud": false,
+  "fraud_probability": 0.0053,
+  "action": "APPROVE",
+  "reason": "Legit (Passed ML)",
+  "latency_ms": 77.58
+}
+
+
+
+
+
+
+
+
+
+
+
 ## How to Run (Docker & GPU)
 #### CPU Launch
 ```
@@ -218,6 +249,11 @@ docker-compose run --rm training python src/scripts/tune_lgbm_script.py
 #### Tune evaluation standalone  script
 ```
 docker-compose run --rm training python -m src.scripts.tune_evaluation_script
+```
+
+#### Redis to SQL script
+```
+docker-compose run --rm fraud_redis python src/redis/redis_to_sql.py
 ```
 
 ## Kaggle Results

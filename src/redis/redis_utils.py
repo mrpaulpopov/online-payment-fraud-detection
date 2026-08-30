@@ -19,6 +19,13 @@ async def get_and_update_aggregates(redis_client,
     pipe = redis_client.pipeline()
 
     # =====================================
+    # -------- EMPTY FIELDS CHECK ---------
+    # =====================================
+    deviceinfo = deviceinfo or 'missing'
+    devicetype = devicetype or 'missing'
+    transaction_amt = float(transaction_amt) or 0.0
+
+    # =====================================
     # -------- TIME SINCE LAST TX ---------
     # =====================================
     hash_uid_key = f'{key}:stats'
@@ -29,8 +36,8 @@ async def get_and_update_aggregates(redis_client,
     # -------HASH LIFETIME AGGREGATES -----
     # =====================================
     pipe.hincrby(hash_uid_key, 'tx_count', 1)  # [2]
-    pipe.hincrbyfloat(hash_uid_key, 'sum_amt', float(transaction_amt))  # [3]
-    pipe.hincrbyfloat(hash_uid_key, 'sum_amt_sq', float(transaction_amt) ** 2)  # [4]
+    pipe.hincrbyfloat(hash_uid_key, 'sum_amt', transaction_amt)  # [3]
+    pipe.hincrbyfloat(hash_uid_key, 'sum_amt_sq', transaction_amt ** 2)  # [4]
 
     # =====================================
     # -------- IS_NEW_DEVICE_UID1 ---------
@@ -94,8 +101,8 @@ async def get_and_update_aggregates(redis_client,
 
     # (1 PRECEDING)
     old_tx_count = tx_count - 1
-    old_sum_amt = sum_amt - float(transaction_amt)
-    old_sum_amt_sq = sum_amt_sq - (float(transaction_amt) ** 2)
+    old_sum_amt = sum_amt - transaction_amt
+    old_sum_amt_sq = sum_amt_sq - (transaction_amt ** 2)
 
     if old_tx_count > 0:
         avg_amt = old_sum_amt / old_tx_count
@@ -106,7 +113,7 @@ async def get_and_update_aggregates(redis_client,
         std_amt = 0.0
 
     # amount/average ratio
-    amt_avg_ratio = float(transaction_amt) / avg_amt if avg_amt else 0
+    amt_vs_avg_ratio = transaction_amt / (avg_amt + 1)
 
     is_new_device_result = 1 - results[5]
 
@@ -151,4 +158,4 @@ async def get_and_update_aggregates(redis_client,
     # print()
 
     return (is_new_device_result, cnt_5m, cnt_1h, cnt_24h, cnt_7d,
-            time_since_last_tx, avg_amt, amt_avg_ratio, std_amt, amt_1h, time_since_last_geo)
+            time_since_last_tx, avg_amt, amt_vs_avg_ratio, std_amt, amt_1h, time_since_last_geo)
