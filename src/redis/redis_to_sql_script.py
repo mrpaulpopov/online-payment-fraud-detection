@@ -14,6 +14,7 @@ logging.basicConfig(
     stream=sys.stdout
 )
 
+logger = logging.getLogger(__name__)
 
 async def manual_flush_to_sql():
     redis_client = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
@@ -23,10 +24,10 @@ async def manual_flush_to_sql():
         queue_len = await redis_client.llen(queue_key)
 
         if queue_len == 0:
-            logging.info("Queue is empty")
+            logger.info("Queue is empty")
             return
 
-        logging.info(f"Found {queue_len} Redis transactions")
+        logger.info(f"Found {queue_len} Redis transactions")
         raw_data = await redis_client.lrange(queue_key, 0, queue_len - 1)
 
         if not raw_data:
@@ -48,10 +49,12 @@ async def manual_flush_to_sql():
 
 
         await redis_client.ltrim(queue_key, queue_len, -1)
-        logging.info(f"SUCCESS: {len(batch_data)} records was written into PostgreSQL!")
+        logger.info(f"SUCCESS: {len(batch_data)} records was written into PostgreSQL!")
 
-    except Exception as e:
-        logging.error(f"Error during flushing to DB: {e}")
+    except RedisError as e:
+        logger.error(f'Error during reading from Redis: {e}')
+    except SQLAlchemyError as e:
+        logger.error(f"Error during writing to DB: {e}")
     finally:
         await redis_client.aclose()
 

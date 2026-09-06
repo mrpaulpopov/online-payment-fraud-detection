@@ -7,6 +7,7 @@ import pandas as pd
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
 
+logger = logging.getLogger(__name__)
 
 def load_data(table_name):
     start = time.time()
@@ -52,6 +53,6 @@ def load_data(table_name):
     # Downsampling
     float64_cols = X.select_dtypes(include=['float64']).columns
     X[float64_cols] = X[float64_cols].astype('float32')
-    logging.info(f"{table_name}: loading completed in {time.time() - start:.4f}s")
+    logger.info(f"{table_name}: loading completed in {time.time() - start:.4f}s")
     # print(X.isnull().mean().sort_values(ascending=False)) # Analyze almost useless columns
     return X, y, transaction_ids

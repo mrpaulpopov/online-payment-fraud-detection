@@ -11,8 +11,7 @@ logging.basicConfig(
     format="%(asctime)s | %(levelname)s | %(message)s"
 )
 
-redis_client = None
-
+logger = logging.getLogger(__name__)
 
 BATCH_SIZE = 5000
 WINDOW_7D = 604800
@@ -23,10 +22,10 @@ WINDOW_24H = 86400
 async def warm_up_redis(redis_client, db_connection):
     is_warmed = await redis_client.get("cache_status:warmed")
     if is_warmed:
-        logging.info("Redis is already warmed up. Skipping...")
+        logger.info("Redis is already warmed up. Skipping...")
         return
 
-    logging.info("Starting Redis Cache Warming...")
+    logger.info("Starting Redis Cache Warming...")
     pipe = redis_client.pipeline()
     commands_count = 0
 
@@ -94,7 +93,7 @@ async def warm_up_redis(redis_client, db_connection):
         await pipe.execute()
 
     await redis_client.set("cache_status:warmed", "1")
-    logging.info("Cache Warming completed successfully!")
+    logger.info("Cache Warming completed successfully!")
 
 
 async def main():
@@ -103,8 +102,8 @@ async def main():
 
     try:
         await warm_up_redis(redis_client, db_connection)
-    except Exception as e:
-        logging.error(f"Error during caching warm-up: {e}")
+    except RedisError as e:
+        logger.error(f"Error during caching warm-up: {e}")
     finally:
         await db_connection.close()
         await redis_client.aclose()

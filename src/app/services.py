@@ -3,6 +3,7 @@ import logging
 
 from src.pipelines.inference_pipeline import inference_pipeline
 
+logger = logging.getLogger(__name__)
 
 def apply_business_rules(transaction: dict) -> tuple[bool, str]:
     if transaction['TransactionAmt'] > 500000 and transaction['is_new_device_uid1'] == 1:
@@ -33,8 +34,8 @@ def process_payment(transaction: dict, inference_meta, model_lgbm) -> tuple[str,
             reason = f"Fraud (Blocked by ML, probability: {(fraud_probability[0])*100:.1f}%)"
         else:
             reason = "Legit (Passed ML)"
-    except Exception as e:
-        logging.error(f"ML Pipeline failed: {e!s}. Falling back to Graceful Degradation.")
+    except Exception as e: # noqa: BLE001
+        logger.error(f"ML Pipeline failed: {e}. Falling back to Graceful Degradation.")
         is_fraud = graceful_degradation(transaction)
         if is_fraud is True:
             reason = "Fraud (Blocked by Fallback rules)"

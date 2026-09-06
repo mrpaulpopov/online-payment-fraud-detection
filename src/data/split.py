@@ -1,5 +1,8 @@
 import logging
 
+import pandas as pd
+
+logger = logging.getLogger(__name__)
 
 def train_split(X, y, config):
     train_size = config['train_size']
@@ -24,6 +27,7 @@ def train_split(X, y, config):
     X_test = X.iloc[test_start:]
     y_test = y.iloc[test_start:]
 
-    logging.info(f"Drift check after train-test split: Train {y_train.mean()}, Val: {y_val.mean()}, Test: {y_test.mean()}")
-    logging.info('Splitting data completed.')
+    logger.info(
+        f"Drift check after train-test split: Train {y_train.mean()}, Val: {y_val.mean()}, Test: {y_test.mean()}")
+    logger.info('Splitting data completed.')
     return X_train, y_train, X_val, y_val, X_test, y_test

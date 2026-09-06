@@ -16,19 +16,18 @@ logging.basicConfig(
     stream=sys.stdout
 )
 
-redis_client = None
-
+logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logging.info("Loading Redis")
+    logger.info("Loading Redis")
     global redis_client
     redis_client = redis.Redis(host='redis', port=6379, db=0, decode_responses=True)
     await redis_client.ping()
     app.state.redis = redis_client
-    logging.info("Successfully connected to Redis")
+    logger.info("Successfully connected to Redis")
 
-    logging.info("Starting up: Loading ML model...")
+    logger.info("Starting up: Loading ML model...")
     try:
         # Critical health check
         if not LGBM_MODEL_PATH.exists():
@@ -44,13 +43,13 @@ async def lifespan(app: FastAPI):
         app.state.model_lgbm = model_lgbm
         app.state.inference_meta = inference_meta
 
-        logging.info("Models loaded successfully!")
-    except Exception as e:
-        logging.critical(f"Failed to load the model during startup: {e}")
+        logger.info("Models loaded successfully!")
+    except Exception as e: # noqa: BLE001
+        logger.critical(f"Failed to load the model during startup: {e}")
         sys.exit(1)
 
     yield
-    logging.info("Shutting down: Flushing memory...")
+    logger.info("Shutting down: Flushing memory...")
     app.state.model_lgbm = None
     app.state.inference_meta = None
     await redis_client.aclose()

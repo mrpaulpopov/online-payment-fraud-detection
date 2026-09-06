@@ -22,6 +22,7 @@ from sklearn.model_selection import StratifiedKFold
 
 from src.paths import INFERENCE_PATH, PLOTS_DIR
 
+logger = logging.getLogger(__name__)
 
 def evaluate_and_log_metrics(model, X, y, best_threshold, target_fpr, run_id, prefix=None):
     client = mlflow.MlflowClient()
@@ -43,7 +44,7 @@ def evaluate_and_log_metrics(model, X, y, best_threshold, target_fpr, run_id, pr
 
 def cross_validation(X_train, X_val, y_train, y_val, lgbm_params, n_splits):
     # CV based on X_train+X_val sets. X_test should not be leaked.
-    logging.info('Starting CV')
+    logger.info('Starting CV')
     X_cv = pd.concat([X_train, X_val]).reset_index(drop=True)
     y_cv = pd.concat([y_train, y_val]).reset_index(drop=True)
 
@@ -76,11 +77,11 @@ def cross_validation(X_train, X_val, y_train, y_val, lgbm_params, n_splits):
 
     mlflow.log_metric("lgbm_cv_pr_auc",
                       np.mean(scores))  # CV result averaged over 5 folds; provides a credible performance estimate.
-    logging.info(f"CV completed in {time.time() - start:.4f}s")
+    logger.info(f"CV completed in {time.time() - start:.4f}s")
 
 
-def plot_shap_values(model, X_val, run_id):
-    logging.info('Starting plot_shap_values')
+def plot_shap_values(model: lgb.Booster, X_val: pd.DataFrame, run_id: str):
+    logger.info('Starting plot_shap_values')
     client = mlflow.MlflowClient()
     explainer = shap.TreeExplainer(model)
     shap_values = explainer(X_val)
@@ -91,7 +92,7 @@ def plot_shap_values(model, X_val, run_id):
     plt.savefig(save_path, bbox_inches="tight", dpi=300)
     plt.close()
     client.log_artifact(run_id, save_path, 'plots')
-    logging.info("Shap summary plots saved.")
+    logger.info("Shap summary plots saved.")
 
 
 def find_best_threshold(y_val, y_val_prob, business_fp_target, threshold_strategy, run_id) -> tuple[float, float, float]:
@@ -99,7 +100,7 @@ def find_best_threshold(y_val, y_val_prob, business_fp_target, threshold_strateg
     Threshold управляет переводом из probability 0.0-1.0 в decision 0-1 (not fraud, legit / fraud, to block).
     С какого момента probability считается fraud?
     '''
-    logging.info('Starting find_best_threshold')
+    logger.info('Starting find_best_threshold')
 
     client = mlflow.MlflowClient()
     precisions, recalls, thresholds = precision_recall_curve(y_val, y_val_prob)  # 'меню' всех возможных вариантов
@@ -134,11 +135,11 @@ def find_best_threshold(y_val, y_val_prob, business_fp_target, threshold_strateg
         # Сортируем по Recall по убыванию и берем самую первую строку (где Recall максимальный)
         best_row = good_precisions.sort_values(by='recall', ascending=False).iloc[0]
         best_business_threshold = best_row['threshold']
-        logging.info(
+        logger.info(
             f"Business Target Precision {business_target_precision} achieved at threshold: {best_business_threshold}")
     else:
         best_business_threshold = best_f1_threshold  # fallback
-        logging.warning("Business Target Precision is unreachable. Using best f1 threshold.")
+        logger.warning("Business Target Precision is unreachable. Using best f1 threshold.")
 
     client.log_param(run_id, "best_business_threshold", best_business_threshold)
 
@@ -148,10 +149,10 @@ def find_best_threshold(y_val, y_val_prob, business_fp_target, threshold_strateg
 
     if threshold_strategy == 'f1':
         final_threshold = best_f1_threshold
-        logging.info(f"Strategy is 'f1'. Using F1 optimized threshold {final_threshold}.")
+        logger.info(f"Strategy is 'f1'. Using F1 optimized threshold {final_threshold}.")
     elif threshold_strategy == 'business':
         final_threshold = best_business_threshold
-        logging.info(f"Strategy is 'business'. Using Business Precision threshold {final_threshold}.")
+        logger.info(f"Strategy is 'business'. Using Business Precision threshold {final_threshold}.")
     else:
         raise ValueError(f"Unknown threshold_strategy: {threshold_strategy}")
 
@@ -164,4 +165,3 @@ def find_best_threshold(y_val, y_val_prob, business_fp_target, threshold_strateg
     INFERENCE_PATH.write_text(json.dumps(inference_meta, indent=4), encoding="utf-8")
 
     return final_threshold, best_business_threshold, best_f1_threshold
-

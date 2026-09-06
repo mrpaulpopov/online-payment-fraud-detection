@@ -12,6 +12,7 @@ from src.data.data_loader_api import async_engine
 from src.redis.redis_utils import get_and_update_aggregates
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 @router.get("/healthcheck")
@@ -40,7 +41,7 @@ async def healthcheck_endpoint(response: Response, request: Request):
         model_lgbm = None
 
     if model_lgbm is None:
-        logging.error("ML model are not loaded into memory")
+        logger.error("ML model is not loaded.")
         health_status["models"] = "failed"
         is_healthy = False
 
@@ -48,8 +49,8 @@ async def healthcheck_endpoint(response: Response, request: Request):
     redis_client = request.app.state.redis
     try:
         await redis_client.ping()
-    except Exception as e:
-        logging.error(f"Redis connection failed: {e}")
+    except RedisError as e:
+        logger.error(f"Redis connection failed: {e}")
         health_status["redis"] = "failed"
         is_healthy = False
 
@@ -63,7 +64,7 @@ async def healthcheck_endpoint(response: Response, request: Request):
 @router.post("/predict", response_model=PredictionResponse)
 async def predict_endpoint(data: Transaction, request: Request,
                            api_key: str = Depends(verify_api_key)):
-    logging.info("Prediction request received")
+    logger.info("Prediction request received")
     start = time.time()
     model_lgbm = request.app.state.model_lgbm
     inference_meta = request.app.state.inference_meta
@@ -108,11 +109,20 @@ async def predict_endpoint(data: Transaction, request: Request,
         await redis_client.rpush("manual_tx_queue", json.dumps(transaction_dict))
 
         latency = round(float(time.time() - start) * 1000, 2)
-        logging.info(f"Prediction completed in {latency:.8f}s")
-    except HTTPException as e:
-        raise e
-    # except Exception as e:
-    #     raise HTTPException(status_code=400, detail=str(e)) # TODO
+        logger.info(f"Prediction completed in {latency:.8f}s")
+
+    except RedisError as e:
+        logger.error(f'Redis error during prediction: {e}')
+        raise HTTPException(
+            status_code=503,
+            detail="Redis service is unavailable"
+        )
+    except Exception as e: # noqa: BLE001
+        logger.error(f'Unexpected error during prediction: {e}')
+        raise HTTPException(
+            status_code=500,
+            detail="Internal server error"
+        )
     return {"transaction_id": int(transaction_id),
             "is_fraud": bool(is_fraud),
             "fraud_probability": float(fraud_probability) if fraud_probability is not None else None,

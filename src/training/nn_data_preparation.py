@@ -9,6 +9,7 @@ from sklearn.preprocessing import StandardScaler
 
 from src.paths import IMPUTER_SCALER_PATH, INFERENCE_PATH
 
+logger = logging.getLogger(__name__)
 
 def pytorch_preprocessing(X_train, X_val, X_test, y_train, config) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     '''
@@ -28,7 +29,7 @@ def pytorch_preprocessing(X_train, X_val, X_test, y_train, config) -> tuple[pd.D
         if X_train[col].nunique() < high_cardinality_threshold:
             str_cols.append(col)
 
-    logging.info(f"Dropped high cardinality cols: {set(all_str_cols) - set(str_cols)}")
+    logger.info(f"Dropped high cardinality cols: {set(all_str_cols) - set(str_cols)}")
 
     # STRING COLUMNS: OHE
     str_train_data = X_train[str_cols].astype('string').fillna('missing')
@@ -68,11 +69,6 @@ def pytorch_preprocessing(X_train, X_val, X_test, y_train, config) -> tuple[pd.D
     del num_train_data, legit_imputed_data
     gc.collect()
 
-    # Saving for inference
-    with IMPUTER_SCALER_PATH.open('wb') as f:
-        pickle.dump({'imputer': num_imputer, 'scaler': scaler}, f)
-    logging.info(f'Imputer and Scaler was saved to {IMPUTER_SCALER_PATH}')
-
     num_val_data = num_imputer.transform(X_val[num_cols])
     num_val_data = scaler.transform(num_val_data).astype('float32')
     num_val_df = pd.DataFrame(num_val_data, columns=num_cols, index=X_val.index)
@@ -108,8 +104,7 @@ def pytorch_preprocessing(X_train, X_val, X_test, y_train, config) -> tuple[pd.D
         "final_pytorch_features": X_train_nn.columns.tolist(),
     })
     INFERENCE_PATH.write_text(json.dumps(inference_meta, indent=4), encoding="utf-8")
-    logging.info('PyTorch preprocessing finished and metadata saved')
-
+    logger.info('PyTorch preprocessing finished and metadata saved')
 
     return X_train_nn, X_val_nn, X_test_nn
 
@@ -120,7 +115,7 @@ def save_original_features_cols(X_train):
         "original_features": X_train.columns.tolist(),
     }
     INFERENCE_PATH.write_text(json.dumps(inference_meta, indent=4), encoding="utf-8")
-    logging.info('Base features metadata saved')
+    logger.info('Base features metadata saved')
 
 
 def pytorch_filtering_rows(X_train_nn, X_val_nn, y_train, y_val) -> tuple[pd.DataFrame, pd.DataFrame]:

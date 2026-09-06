@@ -9,6 +9,7 @@ import pandas as pd
 from src.models.lightgbm_model import lightgbm_model
 from src.paths import LGBM_MODEL_PATH
 
+logger = logging.getLogger(__name__)
 
 def prepare_data_for_lgbm(X_train: pd.DataFrame, X_val: pd.DataFrame, X_test: pd.DataFrame, y_train: pd.Series,
                           y_val: pd.Series, y_test: pd.Series) -> tuple[
@@ -31,8 +32,8 @@ def training_lgbm(train_data: lgb.Dataset, valid_data: lgb.Dataset, lgbm_params:
 
     mlflow.lightgbm.log_model(model, name="model")
     mlflow.log_metric("lgbm_best_iteration", model.best_iteration)
-    logging.info(f"Training completed in {time.time() - start:.4f}s")
+    logger.info(f"Training completed in {time.time() - start:.4f}s")
 
     model.save_model(LGBM_MODEL_PATH, num_iteration=model.best_iteration)
-    logging.info(f"Model saved to {LGBM_MODEL_PATH}")
+    logger.info(f"Model saved to {LGBM_MODEL_PATH}")
     return model

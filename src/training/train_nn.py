@@ -12,14 +12,15 @@ from src.models.autoencoder import autoencoder_nn
 from src.paths import INFERENCE_PATH, NN_MODEL_PATH
 from src.training.nn_utils import EarlyStopping, build_dataloader
 
+logger = logging.getLogger(__name__)
 
 def train_nn_loop(model: nn.Sequential, train_loader, val_loader, optimizer, loss_fn, N_EPOCHS, trial=None):
     '''
     Child function of training_nn.
     '''
-    DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    model.to(DEVICE)
-    logging.info(f"Starting training on {DEVICE}")
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    model.to(device)
+    logger.info(f"Starting training on {device}")
 
     val_loss = None # protection for return
     early_stopping = EarlyStopping(patience=5)

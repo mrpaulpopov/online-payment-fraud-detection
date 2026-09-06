@@ -17,8 +17,10 @@ logging.basicConfig(
 
 )
 
+logger = logging.getLogger(__name__)
+
 def main():
-    logging.info('Starting Kaggle-inference pipeline')
+    logger.info('Starting Kaggle-inference pipeline')
     start = time.time()
 
     # Read JSON
@@ -26,12 +28,6 @@ def main():
     best_threshold = inference_meta["best_threshold"]
     original_features = inference_meta["features"]["original_features"]
     lgbm_str_cols = inference_meta["features"]["all_str_cols"]
-
-    # Read Imputer, Scaler
-    with IMPUTER_SCALER_PATH.open('rb') as f:
-        imp_object= pickle.load(f)
-    num_imputer = imp_object['imputer']
-    scaler = imp_object['scaler']
 
     # --------------------------------------
     # --------- Reading Test table ---------
@@ -45,7 +41,7 @@ def main():
     # --------------------------------
     # ----------- LGBM Side ----------
     # --------------------------------
-    logging.info('Starting LGBM side')
+    logger.info('Starting LGBM side')
 
     model_lgbm = lgb.Booster(model_file=LGBM_MODEL_PATH)
     df_lgmb = df_lgmb.reindex(columns=original_features, fill_value=0)
@@ -66,7 +62,7 @@ def main():
     # --------------------------------
     # ----------- Export -------------
     # --------------------------------
-    logging.info('Starting Export')
+    logger.info('Starting Export')
 
     submission = pd.DataFrame({
         'TransactionID': kaggle_ids,
@@ -74,7 +70,7 @@ def main():
     })
     submission.to_csv('my_submission.csv', index=False)
 
-    logging.info(f"Kaggle inference completed in {time.time() - start:.4f}s")
+    logger.info(f"Kaggle inference completed in {time.time() - start:.4f}s")
 
 if __name__ == '__main__':
     main()

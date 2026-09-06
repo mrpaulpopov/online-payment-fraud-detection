@@ -12,6 +12,7 @@ logging.basicConfig(
     stream=sys.stdout
 )
 
+logger = logging.getLogger(__name__)
 
 def calculate_psi(expected, actual, bins=10):
     expected_series = pd.Series(expected).dropna()
@@ -71,14 +72,14 @@ def main():
     test_df = pd.DataFrame(data=X_test)
 
     overall_psi = get_overall_psi(train_df, test_df)
-    logging.info(f"Overall PSI: {overall_psi:.4f}")
+    logger.info(f"Overall PSI: {overall_psi:.4f}")
 
     if overall_psi > 0.1:
-        logging.info("Data drift detected (PSI > 0.1). Top features by PSI:")
+        logger.info("Data drift detected (PSI > 0.1). Top features by PSI:")
         for col, val in get_top_drifted_features(train_df, test_df):
             print(f"{col}: {val:.4f}")
     else:
-        logging.info("Data drift is within normal limits (PSI < 0.1).")
+        logger.info("Data drift is within normal limits (PSI < 0.1).")
 
 
 if __name__ == '__main__':
