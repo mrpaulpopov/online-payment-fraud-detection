@@ -22,7 +22,7 @@ def train_nn_loop(model: nn.Sequential, train_loader, val_loader, optimizer, los
     model.to(device)
     logger.info(f"Starting training on {device}")
 
-    val_loss = None # protection for return
+    # Early Stopping
     early_stopping = EarlyStopping(patience=5)
     best_model_weights = copy.deepcopy(model.state_dict())
 
@@ -46,6 +46,7 @@ def train_nn_loop(model: nn.Sequential, train_loader, val_loader, optimizer, los
 
         # ===== VALIDATION =====
         model.eval()
+        # Calculated for each epoch:
         val_loss_sum = 0
         val_sq_err_sum = 0
         val_abs_err_sum = 0
@@ -61,7 +62,6 @@ def train_nn_loop(model: nn.Sequential, train_loader, val_loader, optimizer, los
 
                 val_loss_sum += loss.item()
 
-                # Считаем сумму ошибок на лету (сохраняем только одно число .item())
                 val_sq_err_sum += torch.sum((preds - target_batch) ** 2).item()
                 val_abs_err_sum += torch.sum(torch.abs(preds - target_batch)).item()
                 total_val_elements += target_batch.numel()  # Общее количество чисел в батче
@@ -90,13 +90,15 @@ def train_nn_loop(model: nn.Sequential, train_loader, val_loader, optimizer, los
         # --------- EARLY STOPPING --------
         # =================================
         if early_stopping.best_loss is None or val_loss < early_stopping.best_loss:
-            best_model_weights = copy.deepcopy(model.state_dict()) # copy weights only if new val_loss is lower
+            best_model_weights = copy.deepcopy(model.state_dict()) # copy weights only if the new val_loss is lower
         early_stopping(val_loss)
         if early_stopping.early_stop:
             logging.info('Early stopping. Stop training')
             break
 
     gc.collect()
+
+    # Early Stopping
     model.load_state_dict(best_model_weights)
     val_loss = early_stopping.best_loss
 
