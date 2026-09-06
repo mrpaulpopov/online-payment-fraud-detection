@@ -89,7 +89,7 @@ def train_nn_loop(model: nn.Sequential, train_loader: DataLoader, val_loader: Da
         if trial is not None:
             trial.report(val_loss, epoch)
             if trial.should_prune():
-                logging.info(f"Trial pruned at epoch {epoch+1}!")
+                logger.info(f"Trial pruned at epoch {epoch+1}!")
                 raise optuna.TrialPruned()
 
         # =================================
@@ -99,7 +99,7 @@ def train_nn_loop(model: nn.Sequential, train_loader: DataLoader, val_loader: Da
             best_model_weights = copy.deepcopy(model.state_dict()) # copy weights only if the new val_loss is lower
         early_stopping(val_loss)
         if early_stopping.early_stop:
-            logging.info('Early stopping. Stop training')
+            logger.info('Early stopping. Stop training')
             break
 
     gc.collect()
