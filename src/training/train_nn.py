@@ -5,8 +5,11 @@ import logging
 
 import numpy as np
 import optuna
+import pandas as pd
 import torch
 from torch import nn, optim
+from torch.optim import Optimizer
+from torch.utils.data import DataLoader
 
 from src.models.autoencoder import autoencoder_nn
 from src.paths import INFERENCE_PATH, NN_MODEL_PATH
@@ -14,7 +17,7 @@ from src.training.nn_utils import EarlyStopping, build_dataloader
 
 logger = logging.getLogger(__name__)
 
-def train_nn_loop(model: nn.Sequential, train_loader, val_loader, optimizer, loss_fn, N_EPOCHS, trial=None):
+def train_nn_loop(model: nn.Sequential, train_loader: DataLoader, val_loader: DataLoader, optimizer: Optimizer, loss_fn: nn.Module, n_epochs: int, trial=None) -> float:
     '''
     Child function of training_nn.
     '''
@@ -103,11 +106,11 @@ def train_nn_loop(model: nn.Sequential, train_loader, val_loader, optimizer, los
     val_loss = early_stopping.best_loss
 
     torch.save(model.state_dict(), NN_MODEL_PATH)
-    logging.info(f"Model saved to {NN_MODEL_PATH}")
+    logger.info(f"Model saved to {NN_MODEL_PATH}")
     return val_loss
 
 
-def training_nn(X_train_short, X_val_short, pytorch_params, trial=None):
+def training_nn(X_train_short: pd.DataFrame, X_val_short: pd.DataFrame, pytorch_params: dict, trial=None) -> tuple[nn.Sequential, float]:
     '''
     Entry point for PyTorch training.
     '''
@@ -139,7 +142,7 @@ def training_nn(X_train_short, X_val_short, pytorch_params, trial=None):
     return model, val_loss
 
 
-def pytorch_anomaly_scores(model, X_processed, batch_size=1024) -> np.array:
+def pytorch_anomaly_scores(model: nn.Sequential, X_processed: pd.DataFrame, batch_size: int = 1024) -> np.array:
     '''
     Inference function.
     :param model: Ready PyTorch-model.

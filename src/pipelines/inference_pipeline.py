@@ -1,11 +1,13 @@
 import logging
 
+import lightgbm as lgb
+import numpy as np
 import pandas as pd
 
 logger = logging.getLogger(__name__)
 
-def inference_pipeline(data, inference_meta, model_lgbm):
-    logging.info("Starting Inference Pipeline")
+def inference_pipeline(data: dict, inference_meta: dict, model_lgbm: lgb.Booster) -> tuple[np.ndarray, np.ndarray]:
+    logger.info("Starting Inference Pipeline")
     original_features = inference_meta["features"]["original_features"]
     best_threshold = inference_meta["best_threshold"]
     lgbm_str_cols = inference_meta["features"]["all_str_cols"]

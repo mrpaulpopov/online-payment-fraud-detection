@@ -1,12 +1,14 @@
 import matplotlib.pyplot as plt
 import mlflow
+import numpy as np
+import pandas as pd
 import seaborn as sns
 from sklearn.metrics import average_precision_score, precision_recall_curve
 
 from src.paths import PLOTS_DIR
 
 
-def plot_pr_curves(y_val, y_val_prob, run_id, title_prefix="LightGBM"):
+def plot_pr_curves(y_val: pd.Series, y_val_prob: np.ndarray, run_id: str, title_prefix: str="LightGBM"):
     client = mlflow.MlflowClient()
     precision, recall, thresholds = precision_recall_curve(y_val, y_val_prob)
 

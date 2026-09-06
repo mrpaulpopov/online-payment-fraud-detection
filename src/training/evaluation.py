@@ -24,7 +24,9 @@ from src.paths import INFERENCE_PATH, PLOTS_DIR
 
 logger = logging.getLogger(__name__)
 
-def evaluate_and_log_metrics(model, X, y, best_threshold, target_fpr, run_id, prefix=None):
+
+def evaluate_and_log_metrics(model: lgb.Booster, X: pd.DataFrame, y: pd.Series, best_threshold: float,
+                             target_fpr: float, run_id: str, prefix: str):
     client = mlflow.MlflowClient()
     y = y.astype(int)
     y_prob = model.predict(X, num_iteration=model.best_iteration)  # probability from 0.0 to 1.0
@@ -42,7 +44,7 @@ def evaluate_and_log_metrics(model, X, y, best_threshold, target_fpr, run_id, pr
     client.log_metric(run_id,f"lgbm_{prefix}_recall_at_fpr", recall_at_fpr)
 
 
-def cross_validation(X_train, X_val, y_train, y_val, lgbm_params, n_splits):
+def cross_validation(X_train: pd.DataFrame, X_val: pd.DataFrame, y_train: pd.Series, y_val: pd.Series, lgbm_params: dict, n_splits: int):
     # CV based on X_train+X_val sets. X_test should not be leaked.
     logger.info('Starting CV')
     X_cv = pd.concat([X_train, X_val]).reset_index(drop=True)
@@ -95,7 +97,8 @@ def plot_shap_values(model: lgb.Booster, X_val: pd.DataFrame, run_id: str):
     logger.info("Shap summary plots saved.")
 
 
-def find_best_threshold(y_val, y_val_prob, business_fp_target, threshold_strategy, run_id) -> tuple[float, float, float]:
+def find_best_threshold(y_val: pd.Series, y_val_prob: np.ndarray, business_fp_target: float, threshold_strategy: str,
+                        run_id: str) -> tuple[float, float, float]:
     '''
     The function returns three thresholds for plotting afterward.
     '''

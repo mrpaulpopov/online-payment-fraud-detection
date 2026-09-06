@@ -3,6 +3,7 @@ import json
 import logging
 import pickle
 
+import numpy as np
 import pandas as pd
 from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import StandardScaler
@@ -11,7 +12,9 @@ from src.paths import IMPUTER_SCALER_PATH, INFERENCE_PATH
 
 logger = logging.getLogger(__name__)
 
-def pytorch_preprocessing(X_train, X_val, X_test, y_train, config) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+
+def pytorch_preprocessing(X_train: pd.DataFrame, X_val: pd.DataFrame, X_test: pd.DataFrame, y_train: pd.Series,
+                          config: dict) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     '''
     High cardinality filtering and OHE for string columns,
     Imputer and Scaler for numeric columns.
@@ -124,7 +127,7 @@ def save_original_features_cols(X_train: pd.DataFrame):
     logger.info('Base features metadata saved')
 
 
-def pytorch_filtering_rows(X_train_nn, X_val_nn, y_train, y_val) -> tuple[pd.DataFrame, pd.DataFrame]:
+def filter_legit_transactions(X: pd.DataFrame, y: pd.Series) -> pd.DataFrame:
     '''
     For training the Autoencoder, we need only legit transactions (isFraud=0 rows).
     '''

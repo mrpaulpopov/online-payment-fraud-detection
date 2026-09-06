@@ -4,7 +4,10 @@ import pandas as pd
 
 logger = logging.getLogger(__name__)
 
-def train_split(X, y, config):
+
+def train_split(X: pd.DataFrame, y: pd.Series, config: dict) -> tuple[
+    pd.DataFrame, pd.Series, pd.DataFrame, pd.Series, pd.DataFrame, pd.Series]:
+
     train_size = config['train_size']
     test_size = config['test_size']
 

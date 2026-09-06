@@ -42,7 +42,8 @@ logger = logging.getLogger(__name__)
 
 
 # ORCHESTRATION
-def training_pipeline():
+def training_pipeline() -> tuple[
+    lgb.Booster, pd.DataFrame, pd.Series, pd.DataFrame, pd.Series, pd.DataFrame, pd.Series, str]:
     # Loading config
     config = yaml.safe_load(CONFIG_PATH.read_text(encoding="utf-8"))
     use_autoencoder = config["pipeline"]["use_autoencoder"]

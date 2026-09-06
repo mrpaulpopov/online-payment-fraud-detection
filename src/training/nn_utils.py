@@ -1,3 +1,4 @@
+import pandas as pd
 import torch
 from torch.utils.data import DataLoader, TensorDataset
 
@@ -21,7 +22,7 @@ class EarlyStopping:
             self.counter = 0
 
 
-def build_dataloader(X, batch_size, inference=False) -> DataLoader:
+def build_dataloader(X: pd.DataFrame, batch_size: int, inference=False) -> DataLoader:
     '''
     This function can be used for both train and val data.
     Also it can be used in the inference (shuffle should be False during the inference).

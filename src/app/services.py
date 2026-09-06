@@ -18,8 +18,7 @@ def graceful_degradation(transaction: dict) -> bool:
 
     return False
 
-
-def process_payment(transaction: dict, inference_meta, model_lgbm) -> tuple[str, bool, float, str]:
+def process_payment(transaction: dict, inference_meta: dict, model_lgbm: lgb.Booster) -> tuple[str, bool, float | None, str]:
     fraud_probability = None
     is_fraud = None
     business_decision, rule_reason = apply_business_rules(transaction)

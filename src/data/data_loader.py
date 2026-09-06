@@ -9,7 +9,7 @@ from sqlalchemy import create_engine
 
 logger = logging.getLogger(__name__)
 
-def load_data(table_name):
+def load_data(table_name: str) -> tuple[pd.DataFrame, pd.Series, pd.DataFrame]:
     start = time.time()
     load_dotenv() #.env
 
