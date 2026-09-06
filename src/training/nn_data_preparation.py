@@ -16,7 +16,7 @@ def pytorch_preprocessing(X_train, X_val, X_test, y_train, config) -> tuple[pd.D
     High cardinality filtering and OHE for string columns,
     Imputer and Scaler for numeric columns.
     '''
-    logging.info('Starting PyTorch preprocessing')
+    logger.info('Starting PyTorch preprocessing')
     high_cardinality_threshold = config["high_cardinality_threshold"]
 
     # Train columns as a gold standard

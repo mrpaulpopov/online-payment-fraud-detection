@@ -40,7 +40,7 @@ if use_ae:
     X_train_nn, X_val_nn, X_test_nn = pytorch_preprocessing(X_train, X_val, X_test, y_train, config["preprocessing"])
     X_train_nn_short, X_val_nn_short = pytorch_filtering_rows(X_train_nn, X_val_nn, y_train, y_val)
 
-    logging.info('Starting PyTorch training')
+    logger.info('Starting PyTorch training')
     model_autoencoder, pt_val_loss = training_nn(X_train_nn_short, X_val_nn_short, config["pytorch_params"])
     pt_params = {f"pt_{k}": v for k, v in config["pytorch_params"].items()}
 

@@ -119,7 +119,7 @@ def find_best_threshold(y_val, y_val_prob, business_fp_target, threshold_strateg
     best_row = pr_df.loc[best_row_index]
 
     best_f1_threshold = best_row['threshold']
-    logging.info(f"Max F1-Score achieved at threshold {best_f1_threshold}")
+    logger.info(f"Max F1-Score achieved at threshold {best_f1_threshold}")
     client.log_param(run_id, "best_f1_threshold", best_f1_threshold)
 
     # ========================================

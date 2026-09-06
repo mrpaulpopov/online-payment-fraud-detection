@@ -29,8 +29,8 @@ async def healthcheck_endpoint(response: Response, request: Request):
     try:
         async with async_engine.connect() as connection:
             await connection.execute(text("SELECT 1;"))
-    except Exception as e:
-        logging.error(f"Database healthcheck failed: {e}")
+    except SQLAlchemyError as e:
+        logger.error(f"Database healthcheck failed: {e}")
         health_status["database"] = "failed"
         is_healthy = False
 

@@ -22,7 +22,7 @@ def inference_pipeline(data, inference_meta, model_lgbm):
 
     pred_proba = model_lgbm.predict(df_new_lgmb)
     pred_class = (pred_proba > best_threshold).astype(int)
-    logging.info(f"Probability: {pred_proba}")
-    logging.info(f"Predicted class: {pred_class}")
+    logger.info(f"Probability: {pred_proba}")
+    logger.info(f"Predicted class: {pred_class}")
 
     return pred_proba, pred_class
