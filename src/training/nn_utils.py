@@ -28,7 +28,7 @@ def build_dataloader(X, batch_size, inference=False) -> DataLoader:
     '''
     X_t = torch.tensor(X.to_numpy(), dtype=torch.float32)
     if not inference:
-        dataset = TensorDataset(X_t, X_t)   # AutoEncoding
+        dataset = TensorDataset(X_t, X_t)   # Training, AutoEncoding
     else:
         dataset = TensorDataset(X_t)                # Inference
     return DataLoader(dataset, batch_size=batch_size, shuffle=(not inference))

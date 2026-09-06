@@ -13,7 +13,8 @@ logger = logging.getLogger(__name__)
 
 def pytorch_preprocessing(X_train, X_val, X_test, y_train, config) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     '''
-    High cardinality filtering.
+    High cardinality filtering and OHE for string columns,
+    Imputer and Scaler for numeric columns.
     '''
     logging.info('Starting PyTorch preprocessing')
     high_cardinality_threshold = config["high_cardinality_threshold"]
@@ -25,7 +26,7 @@ def pytorch_preprocessing(X_train, X_val, X_test, y_train, config) -> tuple[pd.D
     # HIGH CARDINALITY FILTER
     str_cols = []
     for col in all_str_cols:
-        # Оставляем только те колонки, где меньше N уникальных значений
+        # Keep only columns with fewer than N unique values
         if X_train[col].nunique() < high_cardinality_threshold:
             str_cols.append(col)
 
@@ -58,7 +59,8 @@ def pytorch_preprocessing(X_train, X_val, X_test, y_train, config) -> tuple[pd.D
     # 1. Fitting on legit data only
     legit_train_idx = y_train[y_train == 0].index
     num_imputer.fit(X_train.loc[legit_train_idx, num_cols])
-    legit_imputed_data = num_imputer.transform(X_train.loc[legit_train_idx, num_cols]) # replacing Nan to mean for Scaler
+    legit_imputed_data = num_imputer.transform(
+        X_train.loc[legit_train_idx, num_cols])  # replacing NaNs with the mean for the Scaler
     scaler.fit(legit_imputed_data)
 
     # 2. Transforming the whole dataset
@@ -108,8 +110,12 @@ def pytorch_preprocessing(X_train, X_val, X_test, y_train, config) -> tuple[pd.D
 
     return X_train_nn, X_val_nn, X_test_nn
 
-def save_original_features_cols(X_train):
-    # Saving columns information for inference
+
+def save_original_features_cols(X_train: pd.DataFrame):
+    '''
+    Saving columns information for inference.
+    '''
+
     inference_meta = json.loads(INFERENCE_PATH.read_text(encoding="utf-8"))
     inference_meta["features"] = {
         "original_features": X_train.columns.tolist(),
@@ -120,7 +126,7 @@ def save_original_features_cols(X_train):
 
 def pytorch_filtering_rows(X_train_nn, X_val_nn, y_train, y_val) -> tuple[pd.DataFrame, pd.DataFrame]:
     '''
-    For training the Autoencoder, we need only normal transactions (isFraud=0 rows).
+    For training the Autoencoder, we need only legit transactions (isFraud=0 rows).
     '''
     fraud0_mask_train = (y_train == 0).values
     X_train_nn_short = X_train_nn[fraud0_mask_train]

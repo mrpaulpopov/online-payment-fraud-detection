@@ -2,6 +2,7 @@ import logging
 
 import pandas as pd
 
+logger = logging.getLogger(__name__)
 
 def inference_pipeline(data, inference_meta, model_lgbm):
     logging.info("Starting Inference Pipeline")

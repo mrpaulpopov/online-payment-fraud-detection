@@ -118,13 +118,12 @@ def objective(trial):
 
 
 def main():
-    # Настраиваем MLflow
     mlflow.set_tracking_uri("http://mlflow:5000")
     mlflow.set_experiment("fraud_detection_lgbm_hpo")
 
     print("Starting tuning LGBM hyperparameters with Optuna...")
 
-    # Открываем "родительский" запуск в MLflow, чтобы сгруппировать все Trials
+    # Child run in MLflow for grouping all the trials
     mlflow.end_run()
     with mlflow.start_run(run_name="LGBM_Optimization"):
         study = optuna.create_study(direction="maximize",

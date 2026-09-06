@@ -9,9 +9,9 @@ class PredictionResponse(BaseModel):
     latency_ms: float
 
 
-# TransactionID: int                    - обязательное поле с int
-# TransactionID: int | None             - обязательное поле с int или None
-# TransactionID: int | None = None      - необязательное поле с int или None
+# TransactionID: int                    - required field with int
+# TransactionID: int | None             - required field with int or None
+# TransactionID: int | None = None      - optional field with int or None
 
 
 class Transaction(BaseModel):

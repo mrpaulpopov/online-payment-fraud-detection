@@ -77,7 +77,7 @@ async def predict_endpoint(data: Transaction, request: Request,
         raise HTTPException(status_code=503, detail="Insufficient metadata for an inference")
 
     try:
-        transaction_dict = data.model_dump()  # convert Pydantic to DataFrame
+        transaction_dict = data.model_dump()  # convert Pydantic model to a dictionary
 
         # ==== REDIS: CREATING AGGREGATES =====
         (is_new_device_result, cnt_5m, cnt_1h, cnt_24h,
@@ -127,6 +127,6 @@ async def predict_endpoint(data: Transaction, request: Request,
             "is_fraud": bool(is_fraud),
             "fraud_probability": float(fraud_probability) if fraud_probability is not None else None,
             "action": "BLOCK" if is_fraud else "APPROVE",
-            "reason": str(reason),  # explicitly convert types for all of 4 outputs
+            "reason": str(reason),  # explicitly convert types for all 4 outputs
             "latency_ms": float(latency)
             }

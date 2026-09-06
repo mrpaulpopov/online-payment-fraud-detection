@@ -15,7 +15,7 @@ def plot_pr_curves(y_val, y_val_prob, run_id, title_prefix="LightGBM"):
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
 
     # ==========================================
-    # График 1: Precision & Recall vs. Threshold
+    # Plot 1: Precision & Recall vs. Threshold
     # ==========================================
     ax1.plot(thresholds, precision[:-1], label="Precision", color="#2ca02c", linewidth=2)  # all but scikit last element
     ax1.plot(thresholds, recall[:-1], label="Recall", color="#d62728", linewidth=2)  # all but scikit last element
@@ -29,7 +29,7 @@ def plot_pr_curves(y_val, y_val_prob, run_id, title_prefix="LightGBM"):
     ax1.grid(True, linestyle="--", alpha=0.7)
 
     # ==========================================
-    # График 2: Precision-Recall Curve (PR-AUC)
+    # Plot 2: Precision-Recall Curve (PR-AUC)
     # ==========================================
     ax2.plot(recall, precision, color="#1f77b4", linewidth=2, label=f"PR Curve (AUC = {pr_auc:.3f})")
 

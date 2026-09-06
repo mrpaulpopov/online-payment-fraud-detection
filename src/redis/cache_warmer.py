@@ -2,6 +2,7 @@ import asyncio
 import logging
 
 import redis.asyncio as redis
+from redis.exceptions import RedisError
 
 from src.data.data_loader_api import async_engine
 from src.redis.warming_sql_queries import fetch_7d_transactions, fetch_lifetime_stats
@@ -30,7 +31,7 @@ async def warm_up_redis(redis_client, db_connection):
     commands_count = 0
 
     # =========================================================
-    # ЭТАП 1: Загрузка глобальной статистики (Lifetime)
+    # ----------------- Lifetime Aggregates -------------------
     # =========================================================
     rows_lifetime = await fetch_lifetime_stats(db_connection)
 
@@ -56,7 +57,7 @@ async def warm_up_redis(redis_client, db_connection):
         commands_count = 0
 
     # =========================================================
-    # ЭТАП 2: Загрузка транзакций за 7 дней (Rolling Windows)
+    # ------------ Rolling Windows Aggregates -----------------
     # =========================================================
     rows_7d = await fetch_7d_transactions(db_connection)
 
@@ -72,7 +73,6 @@ async def warm_up_redis(redis_client, db_connection):
         dev_s_key = f"user:{uid}:devices_s"
         dev_z_key = f"user:{uid}:devices_z"
 
-        # Восстанавливаем ZSET и SET
         pipe.zadd(tx_key, {str(tx_id): tx_time})
         pipe.zadd(amt_key, {f"{tx_id}:{tx_amt}": tx_time})
         pipe.sadd(dev_s_key, device_sig)
@@ -80,7 +80,7 @@ async def warm_up_redis(redis_client, db_connection):
 
         # TTL (OFF for debug)
         # pipe.expire(tx_key, WINDOW_7D)
-        # pipe.expire(amt_key, WINDOW_1H)  # amt_1h живет только час!
+        # pipe.expire(amt_key, WINDOW_1H)  # amt_1h lives for only one hour!
         # pipe.expire(dev_s_key, WINDOW_24H * 180)
         # pipe.expire(dev_z_key, WINDOW_24H * 180)
 

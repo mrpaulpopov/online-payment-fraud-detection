@@ -55,6 +55,7 @@ def training_pipeline():
     X_train, y_train, X_val, y_val, X_test, y_test = train_split(X, y, config["train_split"])
     del X, y
     gc.collect()
+    # Saving for inference
     save_original_features_cols(X_train)
 
     if use_autoencoder:
@@ -69,7 +70,7 @@ def training_pipeline():
     with mlflow.start_run() as run:
         if use_autoencoder:
             # ------------ PyTorch side --------------
-            logging.info('Autoencoder+LGBM pipeline: starting PyTorch training')
+            logger.info('Autoencoder+LGBM pipeline: starting PyTorch training')
             model_autoencoder, pt_val_loss = training_nn(X_train_nn_short, X_val_nn_short, config["pytorch_params"])
             pt_params = {f"pt_{k}": v for k, v in config["pytorch_params"].items()}
             mlflow.log_params(pt_params)
@@ -85,13 +86,13 @@ def training_pipeline():
             del X_train_nn_short, X_train_nn, X_val_nn, X_test_nn, train_scores, val_scores, test_scores
             gc.collect()
         else:
-            logging.info('Baseline LGBM pipeline: skipping PyTorch training')
+            logger.info('Baseline LGBM pipeline: skipping PyTorch training')
 
         # ------------ LightGBM side --------------
-        logging.info('Starting LightGBM training')
-        train_data, valid_data, test_data, X_train, X_val, X_test = prepare_data_for_lgbm(X_train, X_val, X_test,
-                                                                                          y_train,
-                                                                                          y_val, y_test)
+        logger.info('Starting LightGBM training')
+        train_data, valid_data, _, X_train, X_val, X_test = prepare_data_for_lgbm(X_train, X_val, X_test,
+                                                                                  y_train,
+                                                                                  y_val, y_test)
 
         model_lgbm = training_lgbm(train_data, valid_data, config["lgbm_params"])
         lgbm_params = {f"lgbm_{k}": v for k, v in config["lgbm_params"].items()}
@@ -103,13 +104,12 @@ def training_pipeline():
         X_val.assign(isFraud=y_val.values).to_parquet(CACHE_DIR / "val_enriched.parquet")
         X_test.assign(isFraud=y_test.values).to_parquet(CACHE_DIR / "test_enriched.parquet")
 
-        # Saving Run ID
-        # "Append" JSON: Read-Append-Write
+        # Saving Run ID. "Append" JSON: Read-Append-Write
         inference_meta = json.loads(INFERENCE_PATH.read_text(encoding="utf-8"))
         inference_meta["run_id"] = run.info.run_id
         INFERENCE_PATH.write_text(json.dumps(inference_meta, indent=4), encoding="utf-8")
 
-    logging.info('Training pipeline finished')
+    logger.info('Training pipeline finished')
     return model_lgbm, X_train, y_train, X_val, y_val, X_test, y_test, run.info.run_id
 
 
@@ -117,7 +117,7 @@ def evaluation_pipeline(model_lgbm, X_train, y_train, X_val, y_val, X_test, y_te
     logging.info('Starting evaluation pipeline')
 
     # Paths, configs
-    logging.info(f'Found run_id: {run_id}')
+    logger.info(f'Found run_id: {run_id}')
     config = yaml.safe_load(CONFIG_PATH.read_text(encoding="utf-8"))
     business_fp_target = config["business_targets"]["business_fp_target"]
     threshold_strategy = config["business_targets"]["threshold_strategy"]
@@ -132,7 +132,7 @@ def evaluation_pipeline(model_lgbm, X_train, y_train, X_val, y_val, X_test, y_te
     plot_density(y_val, y_val_prob, run_id, business_thr, f1_thr)
     plot_pr_curves(y_val, y_val_prob, run_id, title_prefix="Autoencoder+LightGBM Validation")
 
-    logging.info('Starting evaluate train, val, test')
+    logger.info('Starting evaluate train, val, test')
     evaluate_and_log_metrics(model_lgbm, X_train, y_train, final_threshold, business_fp_target, run_id, prefix='train')
     evaluate_and_log_metrics(model_lgbm, X_val, y_val, final_threshold, business_fp_target, run_id, prefix='val')
     evaluate_and_log_metrics(model_lgbm, X_test, y_test, final_threshold, business_fp_target, run_id,
@@ -140,7 +140,7 @@ def evaluation_pipeline(model_lgbm, X_train, y_train, X_val, y_val, X_test, y_te
 
     if shap:
         plot_shap_values(model_lgbm, X_val, run_id)
-    logging.info('Evaluation pipeline finished')
+    logger.info('Evaluation pipeline finished')
 
 
 def main():
@@ -149,7 +149,7 @@ def main():
     force_retrain = config["pipeline"]["force_retrain"]
     # Last check
     if LGBM_MODEL_PATH.exists() and NN_MODEL_PATH.exists() and not force_retrain:
-        logging.info("Model weights already exist. Skipping training and evaluation")
+        logger.info("Model weights already exist. Skipping training and evaluation")
         sys.exit(0)
 
     model_lgbm, X_train, y_train, X_val, y_val, X_test, y_test, run_id = training_pipeline()

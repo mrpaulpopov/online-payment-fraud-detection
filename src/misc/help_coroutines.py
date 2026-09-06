@@ -3,7 +3,7 @@ import asyncio
 
 async def boil_water():
     print('Starting boiling...')
-    # await говорит программе, что тут будет долгий кусок, иди поделай что-нибудь другое. Как доделается, я позову и ты продолжишь отсюда дальше
+    # 'await' tells the program that a long operation is starting here, so go do something else. When it's done, I will call you, and you can continue from here
     await asyncio.sleep(5)
     print('Finished boiling.')
 

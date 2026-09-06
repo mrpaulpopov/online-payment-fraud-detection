@@ -16,8 +16,8 @@ async def fetch_lifetime_stats(db_connection):
     return result.mappings().all()
 
 
-# 1 option: calculate -7 days from NOW
-# 2 option: get the maximum timestamp from the table and calculate -7 days from it
+# option 1: calculate -7 days from NOW
+# option 2: get the maximum timestamp from the table and calculate -7 days from it
 
 async def fetch_7d_transactions(db_connection):
     query = """

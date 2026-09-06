@@ -54,7 +54,7 @@ def main():
 
     print("Starting tuning PyTorch hyperparameters with Optuna...")
 
-    # Открываем "родительский" запуск в MLflow, чтобы сгруппировать все Trials
+    # Child run in MLflow for grouping all the trials
     # n_startup_trials - wait for first N trials for make statistics.
     # n_warmup_steps - wait for first N epochs for warming up.
     with mlflow.start_run(run_name="PyTorch_Optimization"):

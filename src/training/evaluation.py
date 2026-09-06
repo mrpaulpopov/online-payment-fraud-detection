@@ -97,13 +97,12 @@ def plot_shap_values(model: lgb.Booster, X_val: pd.DataFrame, run_id: str):
 
 def find_best_threshold(y_val, y_val_prob, business_fp_target, threshold_strategy, run_id) -> tuple[float, float, float]:
     '''
-    Threshold управляет переводом из probability 0.0-1.0 в decision 0-1 (not fraud, legit / fraud, to block).
-    С какого момента probability считается fraud?
+    The function returns three thresholds for plotting afterward.
     '''
     logger.info('Starting find_best_threshold')
 
     client = mlflow.MlflowClient()
-    precisions, recalls, thresholds = precision_recall_curve(y_val, y_val_prob)  # 'меню' всех возможных вариантов
+    precisions, recalls, thresholds = precision_recall_curve(y_val, y_val_prob)  # 'menu' of all variants
 
     pr_df = pd.DataFrame({
         'threshold': thresholds,
@@ -127,12 +126,12 @@ def find_best_threshold(y_val, y_val_prob, business_fp_target, threshold_strateg
     # ----------- BUSINESS TARGET ------------
     # ========================================
 
-    # Оставляем только те строки, где Precision >= моего заданного значения
+    # Leave only the rows where Precision >= user target value
     business_target_precision = (1 - business_fp_target)
     good_precisions = pr_df[pr_df['precision'] >= business_target_precision]
 
     if not good_precisions.empty:
-        # Сортируем по Recall по убыванию и берем самую первую строку (где Recall максимальный)
+        # Sort Recall in descending order and get the first (maximum) row
         best_row = good_precisions.sort_values(by='recall', ascending=False).iloc[0]
         best_business_threshold = best_row['threshold']
         logger.info(
