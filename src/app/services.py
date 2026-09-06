@@ -1,5 +1,6 @@
-
 import logging
+
+import lightgbm as lgb
 
 from src.pipelines.inference_pipeline import inference_pipeline
 
@@ -13,10 +14,8 @@ def apply_business_rules(transaction: dict) -> tuple[bool, str]:
 
 
 def graceful_degradation(transaction: dict) -> bool:
-    if transaction['TransactionAmt'] > 10_000_000:
-        return True
+    return transaction['TransactionAmt'] > 10_000_000
 
-    return False
 
 def process_payment(transaction: dict, inference_meta: dict, model_lgbm: lgb.Booster) -> tuple[str, bool, float | None, str]:
     fraud_probability = None

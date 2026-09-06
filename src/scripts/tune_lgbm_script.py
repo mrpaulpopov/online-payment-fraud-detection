@@ -15,7 +15,7 @@ from src.data.split import train_split
 from src.paths import CONFIG_PATH
 from src.training.nn_data_preparation import (
     assign_anomaly_scores,
-    pytorch_filtering_rows,
+    filter_legit_transactions,
     pytorch_preprocessing,
 )
 from src.training.train_lgbm import prepare_data_for_lgbm
@@ -26,6 +26,8 @@ logging.basicConfig(
     format="%(asctime)s | %(levelname)s | %(message)s",
     stream=sys.stdout
 )
+
+logger = logging.getLogger(__name__)
 
 # Loading data
 config = yaml.safe_load(CONFIG_PATH.read_text(encoding="utf-8"))
@@ -38,7 +40,8 @@ X_train, y_train, X_val, y_val, X_test, y_test = train_split(X, y, config["train
 # ===========================================
 if use_ae:
     X_train_nn, X_val_nn, X_test_nn = pytorch_preprocessing(X_train, X_val, X_test, y_train, config["preprocessing"])
-    X_train_nn_short, X_val_nn_short = pytorch_filtering_rows(X_train_nn, X_val_nn, y_train, y_val)
+    X_train_nn_short = filter_legit_transactions(X_train_nn, y_train)
+    X_val_nn_short = filter_legit_transactions(X_val_nn, y_val)
 
     logger.info('Starting PyTorch training')
     model_autoencoder, pt_val_loss = training_nn(X_train_nn_short, X_val_nn_short, config["pytorch_params"])
@@ -47,7 +50,9 @@ if use_ae:
     train_scores = pytorch_anomaly_scores(model_autoencoder, X_train_nn)
     val_scores = pytorch_anomaly_scores(model_autoencoder, X_val_nn)
     test_scores = pytorch_anomaly_scores(model_autoencoder, X_test_nn)
-    X_train, X_val, X_test = assign_anomaly_scores(X_train, X_val, X_test, train_scores, val_scores, test_scores)
+    X_train = assign_anomaly_scores(X_train, train_scores)
+    X_val = assign_anomaly_scores(X_val, val_scores)
+    X_test = assign_anomaly_scores(X_test, test_scores)
 
     del X_train_nn_short, X_train_nn, X_val_nn, X_test_nn, train_scores, val_scores, test_scores
     gc.collect()

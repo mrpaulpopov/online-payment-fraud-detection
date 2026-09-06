@@ -20,6 +20,9 @@ logger = logging.getLogger(__name__)
 def train_nn_loop(model: nn.Sequential, train_loader: DataLoader, val_loader: DataLoader, optimizer: Optimizer, loss_fn: nn.Module, n_epochs: int, trial=None) -> float:
     '''
     Child function of training_nn.
+    Train_loss and val_loss use MSELoss (already normalized), so I just normalize it with number of batches.
+    For RMSE and MAE, I divide error by sum of each numel (element).
+    Returns the best validation loss.
     '''
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model.to(device)

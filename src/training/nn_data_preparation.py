@@ -88,6 +88,12 @@ def pytorch_preprocessing(X_train: pd.DataFrame, X_val: pd.DataFrame, X_test: pd
     del num_test_data
     gc.collect()
 
+    # Saving imputer and scaler for inference
+    with IMPUTER_SCALER_PATH.open('wb') as f:
+        pickle.dump({'imputer': num_imputer, 'scaler': scaler}, f)
+    logger.info(f'Imputer and Scaler was saved to {IMPUTER_SCALER_PATH}')
+
+    # Merging num_cols and str_cols
     X_train_nn = pd.concat([str_train_df, num_train_df], axis=1)
     del str_train_df, num_train_df
     gc.collect()
@@ -131,11 +137,9 @@ def filter_legit_transactions(X: pd.DataFrame, y: pd.Series) -> pd.DataFrame:
     '''
     For training the Autoencoder, we need only legit transactions (isFraud=0 rows).
     '''
-    fraud0_mask_train = (y_train == 0).values
-    X_train_nn_short = X_train_nn[fraud0_mask_train]
-    fraud0_mask_val = (y_val == 0).values
-    X_val_nn_short = X_val_nn[fraud0_mask_val]
-    return X_train_nn_short, X_val_nn_short
+    fraud0_mask_train = (y == 0).values
+    X_short = X[fraud0_mask_train]
+    return X_short
 
 
 

@@ -70,9 +70,6 @@ def build_model_code(table: str, columns, class_name) -> str:
     for column_name, data_type, udt_name, is_nullable, column_default, max_len in columns:
         py_type = pg_type_to_py(data_type, udt_name)
 
-        if max_len:
-            comment += f"({max_len})"
-
         annotation = f"{py_type} | None = None"
 
         fields.append(f"    {column_name}: {annotation}")

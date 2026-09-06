@@ -1,6 +1,5 @@
 import json
 import logging
-import pickle
 import sys
 import time
 
@@ -8,7 +7,7 @@ import lightgbm as lgb
 import pandas as pd
 
 from src.data.data_loader import load_data
-from src.paths import IMPUTER_SCALER_PATH, INFERENCE_PATH, LGBM_MODEL_PATH
+from src.paths import INFERENCE_PATH, LGBM_MODEL_PATH
 
 logging.basicConfig(
     level=logging.INFO,

@@ -10,7 +10,7 @@ from src.data.data_loader import load_data
 from src.data.split import train_split
 from src.paths import CONFIG_PATH
 from src.training.nn_data_preparation import (
-    pytorch_filtering_rows,
+    filter_legit_transactions,
     pytorch_preprocessing,
 )
 from src.training.train_nn import training_nn
@@ -26,7 +26,8 @@ config = yaml.safe_load(CONFIG_PATH.read_text(encoding="utf-8"))
 X, y, _ = load_data(table_name='train_final_features')
 X_train, y_train, X_val, y_val, X_test, y_test = train_split(X, y, config["train_split"])
 X_train_nn, X_val_nn, X_test_nn = pytorch_preprocessing(X_train, X_val, X_test, y_train, config["preprocessing"])
-X_train_nn_short, X_val_nn_short = pytorch_filtering_rows(X_train_nn, X_val_nn, y_train, y_val)
+X_train_nn_short = filter_legit_transactions(X_train_nn, y_train)
+X_val_nn_short = filter_legit_transactions(X_val_nn, y_val)
 
 def objective(trial):
     with mlflow.start_run(nested=True):

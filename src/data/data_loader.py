@@ -17,8 +17,8 @@ def load_data(table_name: str) -> tuple[pd.DataFrame, pd.Series, pd.DataFrame]:
         engine = create_engine(f"postgresql+psycopg2://{os.getenv('POSTGRES_USER')}:{os.getenv('POSTGRES_PASSWORD')}"
                                    f"@{os.getenv('POSTGRES_HOST')}:{os.getenv('POSTGRES_PORT')}/{os.getenv('POSTGRES_DB')}")
         engine.connect()
-    except Exception as e:
-        logging.error(f"PostgreSQL connection failed: {e.orig}") # Debug
+    except SQLAlchemyError as e:
+        logger.error(f"PostgreSQL connection failed: {e.orig}") # Debug
         sys.exit(1)
 
     # Zero possibility of SQL-injections, therefore it's safe to use.

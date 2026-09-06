@@ -14,7 +14,7 @@ def plot_pr_curves(y_val: pd.Series, y_val_prob: np.ndarray, run_id: str, title_
 
     pr_auc = average_precision_score(y_val, y_val_prob)
 
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
+    _, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
 
     # ==========================================
     # Plot 1: Precision & Recall vs. Threshold
@@ -54,7 +54,7 @@ def plot_pr_curves(y_val: pd.Series, y_val_prob: np.ndarray, run_id: str, title_
     # Save to MLflow
     client.log_artifact(run_id, save_path, 'plots')
 
-def plot_density(y_val, y_val_prob, run_id, business_thr, f1_thr):
+def plot_density(y_val: pd.Series, y_val_prob: np.ndarray, run_id: str, business_thr: float, f1_thr: float):
     client = mlflow.MlflowClient()
     plt.figure(figsize=(10, 6))
     # Legit transactions

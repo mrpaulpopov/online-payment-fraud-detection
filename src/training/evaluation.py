@@ -32,16 +32,16 @@ def evaluate_and_log_metrics(model: lgb.Booster, X: pd.DataFrame, y: pd.Series, 
     y_prob = model.predict(X, num_iteration=model.best_iteration)  # probability from 0.0 to 1.0
     y_pred = (y_prob > best_threshold).astype(int)  # astype(int) converts False/True to 0/1
 
-    client.log_metric(run_id,f"lgbm_{prefix}_accuracy", accuracy_score(y, y_pred))  # useless
-    client.log_metric(run_id,f"lgbm_{prefix}_precision", precision_score(y, y_pred))
-    client.log_metric(run_id,f"lgbm_{prefix}_recall", recall_score(y, y_pred))
-    client.log_metric(run_id,f"lgbm_{prefix}_f1", f1_score(y, y_pred))  # important
-    client.log_metric(run_id,f"lgbm_{prefix}_roc_auc", roc_auc_score(y, y_prob))  # important
-    client.log_metric(run_id,f"lgbm_{prefix}_pr_auc", average_precision_score(y, y_prob))  # important
+    client.log_metric(run_id, f"lgbm_{prefix}_accuracy", accuracy_score(y, y_pred))  # useless
+    client.log_metric(run_id, f"lgbm_{prefix}_precision", precision_score(y, y_pred))
+    client.log_metric(run_id, f"lgbm_{prefix}_recall", recall_score(y, y_pred))
+    client.log_metric(run_id, f"lgbm_{prefix}_f1", f1_score(y, y_pred))  # important
+    client.log_metric(run_id, f"lgbm_{prefix}_roc_auc", roc_auc_score(y, y_prob))  # important
+    client.log_metric(run_id, f"lgbm_{prefix}_pr_auc", average_precision_score(y, y_prob))  # important
 
     fpr, tpr, _ = roc_curve(y, y_prob)
     recall_at_fpr = max(tpr[fpr <= target_fpr])
-    client.log_metric(run_id,f"lgbm_{prefix}_recall_at_fpr", recall_at_fpr)
+    client.log_metric(run_id, f"lgbm_{prefix}_recall_at_fpr", recall_at_fpr)
 
 
 def cross_validation(X_train: pd.DataFrame, X_val: pd.DataFrame, y_train: pd.Series, y_val: pd.Series, lgbm_params: dict, n_splits: int):
@@ -117,7 +117,8 @@ def find_best_threshold(y_val: pd.Series, y_val_prob: np.ndarray, business_fp_ta
     # ----------- BEST F1-TARGET -------------
     # ========================================
 
-    pr_df['f1_score'] = 2 * pr_df['precision'] * pr_df['recall'] / (pr_df['precision'] + pr_df['recall'] + 1e-08) # f1 formula
+    pr_df['f1_score'] = 2 * pr_df['precision'] * pr_df['recall'] / (
+                pr_df['precision'] + pr_df['recall'] + 1e-08)  # f1 formula
     best_row_index = pr_df['f1_score'].idxmax()
     best_row = pr_df.loc[best_row_index]
 
