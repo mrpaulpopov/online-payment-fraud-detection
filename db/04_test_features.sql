@@ -1,6 +1,6 @@
 -- BEHAVIORAL ASSUMPTIONS
 
--- table base with transactions' features.
+-- Base table with transaction features.
 CREATE TABLE test_transaction_features AS
 SELECT *
 FROM test_transaction t
@@ -20,45 +20,45 @@ UPDATE test_transaction_features
 SET uid1 = COALESCE(card1::text, 'missing');
 
 
--- uid2 = card1 + card2
-ALTER TABLE test_transaction_features
-ADD COLUMN uid2 text;
-
-UPDATE test_transaction_features
-SET uid2 =
-    COALESCE(card1::text, 'missing') ||
-    '_' ||
-    COALESCE(card2::text, 'missing');
-
-
--- uid3 = card1 + card2 + addr1 + P_emaildomain
-ALTER TABLE test_transaction_features
-ADD COLUMN uid3 text;
-
-UPDATE test_transaction_features
-SET uid3 =
-    COALESCE(card1::text, 'missing') ||
-    '_' ||
-    COALESCE(card2::text, 'missing') ||
-    '_' ||
-    COALESCE(addr1::text, 'missing') ||
-    '_' ||
-    COALESCE("P_emaildomain"::text, 'missing');
-
-
--- uid4 = card1 + card2 + addr1 + DeviceInfo
-ALTER TABLE test_transaction_features
-ADD COLUMN uid4 text;
-
-UPDATE test_transaction_features
-SET uid4 =
-    COALESCE(card1::text, 'missing') ||
-    '_' ||
-    COALESCE(card2::text, 'missing') ||
-    '_' ||
-    COALESCE(addr1::text, 'missing') ||
-    '_' ||
-    COALESCE("DeviceInfo"::text, 'missing');
+-- -- uid2 = card1 + card2
+-- ALTER TABLE test_transaction_features
+-- ADD COLUMN uid2 text;
+--
+-- UPDATE test_transaction_features
+-- SET uid2 =
+--     COALESCE(card1::text, 'missing') ||
+--     '_' ||
+--     COALESCE(card2::text, 'missing');
+--
+--
+-- -- uid3 = card1 + card2 + addr1 + P_emaildomain
+-- ALTER TABLE test_transaction_features
+-- ADD COLUMN uid3 text;
+--
+-- UPDATE test_transaction_features
+-- SET uid3 =
+--     COALESCE(card1::text, 'missing') ||
+--     '_' ||
+--     COALESCE(card2::text, 'missing') ||
+--     '_' ||
+--     COALESCE(addr1::text, 'missing') ||
+--     '_' ||
+--     COALESCE("P_emaildomain"::text, 'missing');
+--
+--
+-- -- uid4 = card1 + card2 + addr1 + DeviceInfo
+-- ALTER TABLE test_transaction_features
+-- ADD COLUMN uid4 text;
+--
+-- UPDATE test_transaction_features
+-- SET uid4 =
+--     COALESCE(card1::text, 'missing') ||
+--     '_' ||
+--     COALESCE(card2::text, 'missing') ||
+--     '_' ||
+--     COALESCE(addr1::text, 'missing') ||
+--     '_' ||
+--     COALESCE("DeviceInfo"::text, 'missing');
 
 -- ==========================================
 -- ------ Time features (window-based) ------
@@ -72,9 +72,6 @@ SELECT
     "DeviceInfo",
     "DeviceType",
     "uid1",
-    "uid2",
-    "uid3",
-    "uid4",
 
     COUNT(*) OVER (
         PARTITION BY uid1 -- 1. GROUP BY uid1
@@ -100,18 +97,18 @@ SELECT
         RANGE BETWEEN 604800 PRECEDING AND CURRENT ROW
     ) AS cnt_7d,
 
-    -- LAG: difference between two lines
+    -- LAG: difference between two rows
     COALESCE("TransactionDT" - LAG("TransactionDT") OVER (PARTITION BY uid1 ORDER BY "TransactionDT"), 0
     ) AS time_since_last_tx,
 
-    -- Amount sum last 1h
+    -- Sum of transaction amounts over the last 1h
     SUM("TransactionAmt") OVER (
         PARTITION BY uid1
         ORDER BY "TransactionDT"
         RANGE BETWEEN 3600 PRECEDING AND CURRENT ROW
     ) AS amt_1h,
 
-    -- Per-user time-based-information (for preventing data leakage)
+    -- Per-user time-based information (for preventing data leakage)
     COUNT(*)
         -- DATA LEAKAGE HANDLING
         OVER (
@@ -152,23 +149,23 @@ SET "amt_vs_avg_ratio" = ("TransactionAmt" / ("avg_amt_per_uid1" + 1));
 ALTER TABLE test_transaction_time_features
 ADD COLUMN time_since_last_geo_change bigint;
 
--- MAX выдает 1 макс. значение из столбца, тогда как
--- MAX OVER запоминает макс. значение из предыдущих строчек:
+-- MAX returns a single maximum value from the entire columns, whereas
+-- MAX OVER remembers the maxi,um value from the preceding rows:
 -- 10   -> 10
 -- NULL -> 10
 -- NULL -> 10
 -- 20   -> 20
 -- NULL -> 20
--- MAX OVER PARTITION BY делает это для каждой подгруппы PARTITION.
+-- MAX OVER PARTITION BY does this independently for each PARTITION subgroup.
 
 -- slow algorithm:
--- UPDATE SET WITH step1, step2 - expensive operations are processed for each row.
+-- UPDATE SET WITH step1, step2 - expensive operations are processed for every single row.
 -- new algorithm:
--- WITH step1, step 2 UPDATE SET FROM - step1, step 2 are executed only once.
+-- WITH step1, step 2 UPDATE SET FROM - step1 and step 2 are executed only once.
 
--- 1. geo_change_dt = время смены адреса, либо null, если смены нет
--- 2. last_geo_change_dt - время последней смены адреса (считается через MAX OVER PARTITION)
--- 3. time_since_last_geo_change - разница между dt каждой транзакции и last_geo_change_dt
+-- 1. geo_change_dt = time of the address change, or NULL if there is no change
+-- 2. last_geo_change_dt - time of the last address change (calculated using MAX OVER PARTITION)
+-- 3. time_since_last_geo_change - difference between the DT of each transaction and last_geo_change_dt
 
 WITH step1 AS (
     SELECT
@@ -222,8 +219,8 @@ SET is_new_device_uid1 =
     CASE WHEN EXISTS(
         SELECT 1 FROM test_transaction_time_features t2
         WHERE t2."TransactionDT" < t1."TransactionDT"
-        AND t2."DeviceInfo" IS NOT DISTINCT FROM t1."DeviceInfo" -- comparison of nulls problem
-        AND t2."DeviceType" IS NOT DISTINCT FROM t1."DeviceType" -- comparison of nulls problem
+        AND t2."DeviceInfo" IS NOT DISTINCT FROM t1."DeviceInfo" -- handles the NULL comparison problem
+        AND t2."DeviceType" IS NOT DISTINCT FROM t1."DeviceType" -- handles the NULL comparison problem
         AND t2."uid1" = t1."uid1"
     )
     THEN 0 ELSE 1 END;
@@ -234,7 +231,7 @@ DROP INDEX idx_device_uid1_lookup;
 --  final_features
 -- =========================================
 
--- [SCRIPT] Get all columns names of the table as a list
+-- [SCRIPT] Get all column names of the table as a list
 -- SELECT string_agg(column_name, ', ' ORDER BY ordinal_position)
 -- FROM information_schema.columns
 -- WHERE table_schema = 'public'
