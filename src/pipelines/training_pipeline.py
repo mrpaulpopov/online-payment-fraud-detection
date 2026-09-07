@@ -86,8 +86,9 @@ def training_pipeline() -> tuple[
             train_scores = pytorch_anomaly_scores(model_autoencoder, X_train_nn)
             val_scores = pytorch_anomaly_scores(model_autoencoder, X_val_nn)
             test_scores = pytorch_anomaly_scores(model_autoencoder, X_test_nn)
-            X_train, X_val, X_test = assign_anomaly_scores(X_train, X_val, X_test, train_scores, val_scores,
-                                                           test_scores)
+            X_train = assign_anomaly_scores(X_train, train_scores)
+            X_val = assign_anomaly_scores(X_val, val_scores)
+            X_test = assign_anomaly_scores(X_test, test_scores)
 
             del X_train_nn_short, X_train_nn, X_val_nn, X_test_nn, train_scores, val_scores, test_scores
             gc.collect()

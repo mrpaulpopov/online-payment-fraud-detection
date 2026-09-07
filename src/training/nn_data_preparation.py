@@ -142,12 +142,7 @@ def filter_legit_transactions(X: pd.DataFrame, y: pd.Series) -> pd.DataFrame:
     return X_short
 
 
-
-def assign_anomaly_scores(X_train, X_val, X_test, train_scores, val_scores, test_scores) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    X_train = X_train.copy()
-    X_val = X_val.copy()
-    X_test = X_test.copy()
-    X_train['anomaly_score'] = train_scores
-    X_val['anomaly_score'] = val_scores
-    X_test['anomaly_score'] = test_scores
-    return X_train, X_val, X_test
+def assign_anomaly_scores(X: pd.DataFrame, scores: np.array) -> pd.DataFrame:
+    X = X.copy()
+    X['anomaly_score'] = scores
+    return X
