@@ -21,7 +21,6 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Loading Redis")
-    global redis_client
     redis_client = redis.Redis(host='redis', port=6379, db=0, decode_responses=True)
     await redis_client.ping()
     app.state.redis = redis_client
@@ -52,7 +51,9 @@ async def lifespan(app: FastAPI):
     logger.info("Shutting down: Flushing memory...")
     app.state.model_lgbm = None
     app.state.inference_meta = None
-    await redis_client.aclose()
+
+    if hasattr(app.state, "redis"): # only if Redis has been initialized
+        await redis_client.aclose()
 
 
 app = FastAPI(title="Fraud Detection API", lifespan=lifespan)
