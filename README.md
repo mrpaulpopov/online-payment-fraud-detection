@@ -1,5 +1,5 @@
 # Online Payment Fraud Detection
-![CI](https://github.com/mrpaulpopov/online_payment_fraud-detection/actions/workflows/ci.yml/badge.svg)
+![CI](https://github.com/mrpaulpopov/online-payment-fraud-detection/actions/workflows/ci.yml/badge.svg)
 ## Project Overview 
 This is the project for online detection of fraud transactions, it was based on IEEE-CIS Fraud Detection dataset.
 
