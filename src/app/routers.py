@@ -82,14 +82,18 @@ async def predict_endpoint(data: Transaction, request: Request,
         transaction_dict = data.model_dump()  # convert Pydantic model to a dictionary
 
         # ==== REDIS: CREATING AGGREGATES =====
+
+        # card1, TransactionID, TransactionAmt are required field.
+        # DeviceInfo and DeviceType are optional fields.
         (is_new_device_result, cnt_5m, cnt_1h, cnt_24h,
          cnt_7d, time_since_last_tx, avg_amt, amt_vs_avg_ratio,
          std_amt, amt_1h,
-         time_since_last_geo) = await get_and_update_aggregates(redis_client, uid=transaction_dict["card1"],
-                                                                transaction_id=transaction_dict["TransactionID"],
-                                                                transaction_amt=transaction_dict["TransactionAmt"],
-                                                                deviceinfo=transaction_dict["DeviceInfo"],
-                                                                devicetype=transaction_dict["DeviceType"]
+         time_since_last_geo) = await get_and_update_aggregates(redis_client, uid=str(transaction_dict["card1"]),
+                                                                transaction_id=str(transaction_dict["TransactionID"]),
+                                                                transaction_amt=float(
+                                                                    transaction_dict["TransactionAmt"]),
+                                                                deviceinfo=transaction_dict.get("DeviceInfo"),
+                                                                devicetype=transaction_dict.get("DeviceType")
                                                                 )
         transaction_dict["is_new_device_uid1"] = is_new_device_result
         transaction_dict["cnt_5m"] = cnt_5m

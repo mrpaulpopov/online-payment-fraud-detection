@@ -15,9 +15,9 @@ class PredictionResponse(BaseModel):
 
 
 class Transaction(BaseModel):
-    TransactionID: int | None = None
+    TransactionID: int  # REQUIRED
     TransactionDT: int | None = None
-    TransactionAmt: float | None = None
+    TransactionAmt: float  # REQUIRED
     DeviceInfo: str | None = None
     DeviceType: str | None = None
     uid1: str | None = None
@@ -34,7 +34,7 @@ class Transaction(BaseModel):
     time_since_last_geo_change: int | None = None
     is_new_device_uid1: int | None = None
     ProductCD: str | None = None
-    card1: int | None = None
+    card1: int  # REQUIRED
     card2: float | None = None
     card3: float | None = None
     card4: str | None = None

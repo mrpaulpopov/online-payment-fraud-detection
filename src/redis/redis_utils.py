@@ -9,9 +9,9 @@ WINDOW_5M = 300
 async def get_and_update_aggregates(redis_client,
                                     uid: str,
                                     transaction_id: str,
-                                    transaction_amt: str,
-                                    deviceinfo: str,
-                                    devicetype: str) -> tuple[
+                                    transaction_amt: float,
+                                    deviceinfo: str | None = None,
+                                    devicetype: str | None = None) -> tuple[
     int, int, int, int, int, float, float, float, float, float, float]:
     now = time.time()
     key = f"user:{uid}"
@@ -23,7 +23,6 @@ async def get_and_update_aggregates(redis_client,
     # =====================================
     deviceinfo = deviceinfo or 'missing'
     devicetype = devicetype or 'missing'
-    transaction_amt = float(transaction_amt) or 0.0
 
     # =====================================
     # -------- TIME SINCE LAST TX ---------
