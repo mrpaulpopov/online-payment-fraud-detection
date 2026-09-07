@@ -66,7 +66,7 @@ def train_nn_loop(model: nn.Sequential, train_loader: DataLoader, val_loader: Da
                 preds = model(X_val_batch)
                 loss = loss_fn(preds, target_batch)
 
-                val_loss_sum += loss.item()
+                val_loss_sum += loss.item() # sum of losses from all the batches, converted to float
 
                 val_sq_err_sum += torch.sum((preds - target_batch) ** 2).item()
                 val_abs_err_sum += torch.sum(torch.abs(preds - target_batch)).item()
