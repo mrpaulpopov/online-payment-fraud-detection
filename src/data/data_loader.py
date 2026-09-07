@@ -17,7 +17,6 @@ def load_data(table_name: str) -> tuple[pd.DataFrame, pd.Series, pd.DataFrame]:
     try:
         engine = create_engine(f"postgresql+psycopg2://{os.getenv('POSTGRES_USER')}:{os.getenv('POSTGRES_PASSWORD')}"
                                    f"@{os.getenv('POSTGRES_HOST')}:{os.getenv('POSTGRES_PORT')}/{os.getenv('POSTGRES_DB')}")
-        engine.connect()
     except SQLAlchemyError as e:
         logger.error(f"PostgreSQL connection failed: {getattr(e, 'orig', str(e))}") # Debug
         sys.exit(1)
@@ -28,9 +27,10 @@ def load_data(table_name: str) -> tuple[pd.DataFrame, pd.Series, pd.DataFrame]:
     FROM {table_name}
     """
 
-    df_iter = pd.read_sql(query, engine, chunksize=50000)
-    df = pd.concat(df_iter)
-    # df = pd.read_sql(query, engine)
+    with engine.connect() as connection: # read sql as a file, closing the connection in the end
+        df_iter = pd.read_sql(query, connection, chunksize=50000)
+        df = pd.concat(df_iter)
+        # df = pd.read_sql(query, connection)
 
     df = df.sort_values("TransactionDT")
     df = df.reset_index(drop=True) # советуют после сортировки
