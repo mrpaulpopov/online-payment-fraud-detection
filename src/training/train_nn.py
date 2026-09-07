@@ -40,7 +40,6 @@ def train_nn_loop(model: nn.Sequential, train_loader: DataLoader, val_loader: Da
             target_batch = target_batch.to(device)
 
             preds = model(X_train_batch)
-
             loss = loss_fn(preds, target_batch)  # FORWARD pass
 
             optimizer.zero_grad()
