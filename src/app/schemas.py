@@ -21,9 +21,6 @@ class Transaction(BaseModel):
     DeviceInfo: str | None = None
     DeviceType: str | None = None
     uid1: str | None = None
-    uid2: str | None = None
-    uid3: str | None = None
-    uid4: str | None = None
     cnt_5m: int | None = None
     cnt_1h: int | None = None
     cnt_24h: int | None = None
@@ -36,7 +33,6 @@ class Transaction(BaseModel):
     amt_vs_avg_ratio: float | None = None
     time_since_last_geo_change: int | None = None
     is_new_device_uid1: int | None = None
-    isFraud: int | None = None
     ProductCD: str | None = None
     card1: int | None = None
     card2: float | None = None
