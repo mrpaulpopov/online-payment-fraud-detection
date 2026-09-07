@@ -26,7 +26,7 @@ from src.training.evaluation import (
 )
 from src.training.nn_data_preparation import (
     assign_anomaly_scores,
-    pytorch_filtering_rows,
+    filter_legit_transactions,
     pytorch_preprocessing,
     save_original_features_cols,
 )
@@ -67,7 +67,8 @@ def training_pipeline() -> tuple[
         # ------------ PyTorch side --------------
         X_train_nn, X_val_nn, X_test_nn = pytorch_preprocessing(X_train, X_val, X_test, y_train, config[
             "preprocessing"])
-        X_train_nn_short, X_val_nn_short = pytorch_filtering_rows(X_train_nn, X_val_nn, y_train, y_val)
+        X_train_nn_short = filter_legit_transactions(X_train_nn, y_train)
+        X_val_nn_short = filter_legit_transactions(X_val_nn, y_val)
 
     tracking_uri = os.getenv("MLFLOW_TRACKING_URI", "http://mlflow:5000")
     mlflow.set_tracking_uri(tracking_uri)
