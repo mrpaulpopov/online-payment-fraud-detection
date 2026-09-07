@@ -38,7 +38,7 @@ async def test_redis_aggregates():
     )
 
     avg_amt = res_3[6]
-    assert avg_amt == 150.0
+    assert avg_amt == 150.0 # except last transaction. Also it's a feature leakage test
 
     amt_vs_avg_ratio = res_3[7]
     expected_ratio = 300.0 / (150.0 + 1)
