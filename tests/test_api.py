@@ -1,11 +1,11 @@
-import pytest
-from fastapi.testclient import TestClient
 from unittest.mock import MagicMock
+
+import pytest
 from fakeredis import FakeAsyncRedis
+from fastapi.testclient import TestClient
 
 from src.app.dependencies import verify_api_key
 from src.app.main import app
-
 
 
 @pytest.fixture
