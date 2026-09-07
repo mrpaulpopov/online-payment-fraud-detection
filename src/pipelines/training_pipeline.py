@@ -4,7 +4,9 @@ import logging
 import os
 import sys
 
+import lightgbm as lgb
 import mlflow
+import pandas as pd
 import yaml
 
 from src.data.data_loader import load_data

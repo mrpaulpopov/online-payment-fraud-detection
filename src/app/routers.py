@@ -3,7 +3,9 @@ import logging
 import time
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from redis.exceptions import RedisError
 from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 
 from src.app.dependencies import verify_api_key
 from src.app.schemas import PredictionResponse, Transaction
@@ -37,7 +39,7 @@ async def healthcheck_endpoint(response: Response, request: Request):
     # models
     try:
         model_lgbm = request.app.state.model_lgbm
-    except Exception:
+    except AttributeError:
         model_lgbm = None
 
     if model_lgbm is None:

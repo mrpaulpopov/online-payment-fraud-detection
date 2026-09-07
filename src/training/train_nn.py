@@ -32,12 +32,12 @@ def train_nn_loop(model: nn.Sequential, train_loader: DataLoader, val_loader: Da
     early_stopping = EarlyStopping(patience=5)
     best_model_weights = copy.deepcopy(model.state_dict())
 
-    for epoch in range(N_EPOCHS):
+    for epoch in range(n_epochs):
         model.train()
-        total_loss = 0
-        for X_train_batch, target_batch in train_loader:
-            X_train_batch = X_train_batch.to(DEVICE)
-            target_batch = target_batch.to(DEVICE)
+        total_loss_sum = 0
+        for X_train_batch, target_batch in train_loader: # for X_t, X_t (shuffled)
+            X_train_batch = X_train_batch.to(device)
+            target_batch = target_batch.to(device)
 
             preds = model(X_train_batch)
 
@@ -59,9 +59,9 @@ def train_nn_loop(model: nn.Sequential, train_loader: DataLoader, val_loader: Da
         total_val_elements = 0
 
         with torch.no_grad():
-            for X_val_batch, target_batch in val_loader:
-                X_val_batch = X_val_batch.to(DEVICE)
-                target_batch = target_batch.to(DEVICE)
+            for X_val_batch, target_batch in val_loader: # for X_t, X_t (shuffled) (same batches from train)
+                X_val_batch = X_val_batch.to(device)
+                target_batch = target_batch.to(device)
 
                 preds = model(X_val_batch)
                 loss = loss_fn(preds, target_batch)
