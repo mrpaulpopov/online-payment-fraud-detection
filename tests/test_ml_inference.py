@@ -2,7 +2,7 @@ import json
 
 import lightgbm as lgb
 
-from src.paths import LGBM_MODEL_PATH, INFERENCE_PATH
+from src.paths import INFERENCE_PATH, LGBM_MODEL_PATH
 from src.pipelines.inference_pipeline import inference_pipeline
 
 
@@ -458,7 +458,7 @@ def test_model_detects_known_fraud_1():
         "id_38": None
 }
 
-    raw_fraud_probability, raw_is_fraud = inference_pipeline(transaction, inference_meta, model_lgbm)  # np.array
+    _, raw_is_fraud = inference_pipeline(transaction, inference_meta, model_lgbm)  # np.array
     is_fraud = bool(raw_is_fraud[0]) # np.array to float
     assert is_fraud is True
 
@@ -914,7 +914,7 @@ def test_model_detects_known_fraud_2():
         "id_38": None
 }
 
-    raw_fraud_probability, raw_is_fraud = inference_pipeline(transaction, inference_meta, model_lgbm)  # np.array
+    _, raw_is_fraud = inference_pipeline(transaction, inference_meta, model_lgbm)  # np.array
     is_fraud = bool(raw_is_fraud[0]) # np.array to float
     assert is_fraud is True
     
@@ -1372,6 +1372,6 @@ def test_model_detects_known_legit_1():
         "id_38": None
 }
 
-    raw_fraud_probability, raw_is_fraud = inference_pipeline(transaction, inference_meta, model_lgbm)  # np.array
+    _, raw_is_fraud = inference_pipeline(transaction, inference_meta, model_lgbm)  # np.array
     is_fraud = bool(raw_is_fraud[0]) # np.array to float
     assert is_fraud is False
