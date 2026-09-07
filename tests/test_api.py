@@ -28,8 +28,7 @@ def test_business_rules(mock_app_state):
 
     response = client.post(
         "/predict",
-        headers={"x-api-key": "123"},
-        json={"TransactionAmt": "600000",
+        json={"TransactionAmt": "600000", # huge amount from a new device
               "is_new_device_uid1": "1",
               "TransactionID" : "0",
               "card1": "0"}
@@ -41,3 +40,18 @@ def test_business_rules(mock_app_state):
     assert data["action"] == "BLOCK"
     assert "Blocked by Business Rule: Huge amount from new device" in data["reason"]
 
+def test_pydantic_schema(mock_app_state):
+    client = TestClient(mock_app_state)
+
+    response = client.post(
+        "/predict",
+        json={"C1": 2, # required fields are missing
+              "C2": 2,
+              "C3": 0,
+              "C4": 0,
+              "C5": 0,
+              "C6": 1}
+    )
+
+    assert response.status_code == 422
+    assert "Field required" in response.text
