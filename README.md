@@ -1,4 +1,5 @@
 # Online Payment Fraud Detection
+![CI](https://github.com/mrpaulpopov/online_payment_fraud-detection/actions/workflows/ci.yml/badge.svg)
 ## Project Overview 
 This is the project for online detection of fraud transactions, it was based on IEEE-CIS Fraud Detection dataset.
 
@@ -281,7 +282,7 @@ However, I decided to not allow to launch this project locally, only Docker (Lin
 
 
 
-
+Ruff
 
 
 
