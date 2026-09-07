@@ -105,7 +105,8 @@ async def predict_endpoint(data: Transaction, request: Request,
         # =======================================
 
         # ======== SEND TO A SERVICE ============
-        transaction_id, is_fraud, fraud_probability, reason = process_payment(transaction_dict, inference_meta, model_lgbm)
+        transaction_id, is_fraud, fraud_probability, reason = process_payment(transaction_dict, inference_meta,
+                                                                              model_lgbm)
 
         # ======= REDIS: SAVE TO SQL ============
         await redis_client.rpush("manual_tx_queue", json.dumps(transaction_dict))
@@ -119,7 +120,7 @@ async def predict_endpoint(data: Transaction, request: Request,
             status_code=503,
             detail="Redis service is unavailable"
         )
-    except Exception as e: # noqa: BLE001
+    except Exception as e:  # noqa: BLE001
         logger.error(f'Unexpected error during prediction: {e}')
         raise HTTPException(
             status_code=500,
