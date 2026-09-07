@@ -35,7 +35,12 @@ async def manual_flush_to_sql():
         if not raw_data:
             return
 
-        batch_data = [json.loads(item) for item in raw_data]
+        batch_data = []
+        for item in raw_data:
+            try:
+                batch_data.append(json.loads(item))
+            except json.JSONDecodeError:
+                logger.error(f'Error decoding JSON, skipping item: {item}')
 
         insert_query = text("""
             INSERT INTO test_final_features (
