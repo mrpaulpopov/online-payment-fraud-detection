@@ -55,7 +55,7 @@ services:
     volumes:
       - .:/app
       - ./docs/plots:/app/docs/plots
-      - ./models:/app/models
+      - ./artifacts:/app/artifacts
       - mlflow_artifacts:/mlruns
 
   redis:
@@ -94,7 +94,7 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ./models:/app/models
+      - ./artifacts:/app/artifacts
     depends_on:
       training:
         condition: service_completed_successfully
