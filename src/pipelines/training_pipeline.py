@@ -6,6 +6,7 @@ import sys
 
 import lightgbm as lgb
 import mlflow
+import numpy as np
 import pandas as pd
 import yaml
 
@@ -134,7 +135,7 @@ def evaluation_pipeline(model_lgbm: lgb.Booster, X_train: pd.DataFrame, y_train:
     tracking_uri = os.getenv("MLFLOW_TRACKING_URI", "http://mlflow:5000")
     mlflow.set_tracking_uri(tracking_uri)
 
-    y_val_prob = model_lgbm.predict(X_val, num_iteration=model_lgbm.best_iteration)  # probability from 0.0 to 1.0
+    y_val_prob = np.array(model_lgbm.predict(X_val, num_iteration=model_lgbm.best_iteration))  # probability from 0.0 to 1.0
     final_threshold, business_thr, f1_thr = find_best_threshold(y_val, y_val_prob, business_fp_target,
                                                                 threshold_strategy, run_id)
     plot_density(y_val, y_val_prob, run_id, business_thr, f1_thr)

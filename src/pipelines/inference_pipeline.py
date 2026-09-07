@@ -22,7 +22,7 @@ def inference_pipeline(data: dict, inference_meta: dict, model_lgbm: lgb.Booster
             df_new_lgmb[col] = pd.to_numeric(df_new_lgmb[col], errors='coerce')
 
 
-    pred_proba = model_lgbm.predict(df_new_lgmb)
+    pred_proba = np.array(model_lgbm.predict(df_new_lgmb))
     pred_class = (pred_proba > best_threshold).astype(int)
     logger.info(f"Probability: {pred_proba}")
     logger.info(f"Predicted class: {pred_class}")
