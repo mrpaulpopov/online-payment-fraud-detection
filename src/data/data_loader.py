@@ -19,7 +19,7 @@ def load_data(table_name: str) -> tuple[pd.DataFrame, pd.Series, pd.DataFrame]:
                                    f"@{os.getenv('POSTGRES_HOST')}:{os.getenv('POSTGRES_PORT')}/{os.getenv('POSTGRES_DB')}")
         engine.connect()
     except SQLAlchemyError as e:
-        logger.error(f"PostgreSQL connection failed: {e.orig}") # Debug
+        logger.error(f"PostgreSQL connection failed: {getattr(e, 'orig', str(e))}") # Debug
         sys.exit(1)
 
     # Zero possibility of SQL-injections, therefore it's safe to use.
