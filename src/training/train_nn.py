@@ -76,8 +76,8 @@ def train_nn_loop(model: nn.Sequential, train_loader: DataLoader, val_loader: Da
         rmse = np.sqrt(val_sq_err_sum / total_val_elements)
         mae = val_abs_err_sum / total_val_elements
 
-        logging.info(
-            f"Epoch {epoch + 1}/{N_EPOCHS} | "
+        logger.info(
+            f"Epoch {epoch + 1}/{n_epochs} | "
             f"train_loss={train_loss:.4f} | "
             f"val_loss={val_loss:.4f} | "
             f"val_rmse={rmse:.4f} | "

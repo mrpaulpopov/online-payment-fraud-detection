@@ -118,8 +118,9 @@ def training_pipeline() -> tuple[
     return model_lgbm, X_train, y_train, X_val, y_val, X_test, y_test, run.info.run_id
 
 
-def evaluation_pipeline(model_lgbm, X_train, y_train, X_val, y_val, X_test, y_test, run_id, shap=True):
-    logging.info('Starting evaluation pipeline')
+def evaluation_pipeline(model_lgbm: lgb.Booster, X_train: pd.DataFrame, y_train: pd.Series, X_val: pd.DataFrame,
+                        y_val: pd.Series, X_test: pd.DataFrame, y_test: pd.Series, run_id: str, shap: bool = True):
+    logger.info('Starting evaluation pipeline')
 
     # Paths, configs
     logger.info(f'Found run_id: {run_id}')
