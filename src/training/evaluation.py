@@ -29,7 +29,7 @@ def evaluate_and_log_metrics(model: lgb.Booster, X: pd.DataFrame, y: pd.Series, 
                              target_fpr: float, run_id: str, prefix: str):
     client = mlflow.MlflowClient()
     y = y.astype(int)
-    y_prob = model.predict(X, num_iteration=model.best_iteration)  # probability from 0.0 to 1.0
+    y_prob = np.array(model.predict(X, num_iteration=model.best_iteration))  # probability from 0.0 to 1.0
     y_pred = (y_prob > best_threshold).astype(int)  # astype(int) converts False/True to 0/1
 
     client.log_metric(run_id, f"lgbm_{prefix}_accuracy", accuracy_score(y, y_pred))  # useless
