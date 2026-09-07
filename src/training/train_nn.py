@@ -52,9 +52,9 @@ def train_nn_loop(model: nn.Sequential, train_loader: DataLoader, val_loader: Da
         # ===== VALIDATION =====
         model.eval()
         # Calculated for each epoch:
-        val_loss_sum = 0
-        val_sq_err_sum = 0
-        val_abs_err_sum = 0
+        val_loss_sum = 0.0
+        val_sq_err_sum = 0.0
+        val_abs_err_sum = 0.0
         n_val_elements = 0
 
         with torch.no_grad():
@@ -144,7 +144,7 @@ def training_nn(X_train_short: pd.DataFrame, X_val_short: pd.DataFrame, pytorch_
     return model, val_loss
 
 
-def pytorch_anomaly_scores(model: nn.Sequential, X_processed: pd.DataFrame, batch_size: int = 1024) -> np.array:
+def pytorch_anomaly_scores(model: nn.Sequential, X_processed: pd.DataFrame, batch_size: int = 1024) -> np.ndarray:
     '''
     Inference function.
     :param model: Ready PyTorch-model.
@@ -157,7 +157,7 @@ def pytorch_anomaly_scores(model: nn.Sequential, X_processed: pd.DataFrame, batc
     loader = build_dataloader(X_processed, batch_size, inference=True)
 
     model.eval()
-    scores = []
+    scores: list[float] = []
 
     with torch.no_grad():
         for X_batch in loader:
