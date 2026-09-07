@@ -46,8 +46,8 @@ def train_nn_loop(model: nn.Sequential, train_loader: DataLoader, val_loader: Da
             loss.backward()
             optimizer.step()
 
-            total_loss += loss.item()  # sum of losses.
-        train_loss = total_loss / len(train_loader)  # 'normalized' loss
+            total_loss_sum += loss.item()  # sum of losses from all the batches.
+        train_loss = total_loss_sum / len(train_loader)  # 'normalized' loss
 
         # ===== VALIDATION =====
         model.eval()
@@ -55,7 +55,7 @@ def train_nn_loop(model: nn.Sequential, train_loader: DataLoader, val_loader: Da
         val_loss_sum = 0
         val_sq_err_sum = 0
         val_abs_err_sum = 0
-        total_val_elements = 0
+        n_val_elements = 0
 
         with torch.no_grad():
             for X_val_batch, target_batch in val_loader: # for X_t, X_t (shuffled) (same batches from train)
@@ -69,11 +69,11 @@ def train_nn_loop(model: nn.Sequential, train_loader: DataLoader, val_loader: Da
 
                 val_sq_err_sum += torch.sum((preds - target_batch) ** 2).item()
                 val_abs_err_sum += torch.sum(torch.abs(preds - target_batch)).item()
-                total_val_elements += target_batch.numel()  # Общее количество чисел в батче
+                n_val_elements += target_batch.numel()  # N, number of target elements
 
-        val_loss = val_loss_sum / len(val_loader)
-        rmse = np.sqrt(val_sq_err_sum / total_val_elements)
-        mae = val_abs_err_sum / total_val_elements
+        val_loss = val_loss_sum / len(val_loader) # loss / n_batches = mean loss
+        rmse = np.sqrt(val_sq_err_sum / n_val_elements) # sqrt(error / n_elements) = rmse
+        mae = val_abs_err_sum / n_val_elements
 
         logger.info(
             f"Epoch {epoch + 1}/{n_epochs} | "
