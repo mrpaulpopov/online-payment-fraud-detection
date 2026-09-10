@@ -36,7 +36,6 @@ async def lifespan(app: FastAPI):
 
         # Read JSON
         inference_meta = json.loads(INFERENCE_PATH.read_text(encoding="utf-8"))
-
         model_lgbm = lgb.Booster(model_file=LGBM_MODEL_PATH)
 
         app.state.model_lgbm = model_lgbm
