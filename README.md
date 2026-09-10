@@ -20,7 +20,7 @@ for Inference АРІ I choose the baseline LightGBM pipeline.
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/inference_data_flow_diagram_dark.svg">
   <source media="(prefers-color-scheme: light)" srcset="docs/diagrams/inference_data_flow_diagram_light.svg">
-  <img alt="Training Data Flow Diagram" src="docs/diagrams/inference_data_flow_diagram_light.svg" width="49%">
+  <img alt="Inference Data Flow Diagram" src="docs/diagrams/inference_data_flow_diagram_light.svg">
 </picture>
 
 ## Technical Stack
