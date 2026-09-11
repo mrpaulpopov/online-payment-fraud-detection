@@ -1,13 +1,11 @@
 # Online Payment Fraud Detection
 ![CI](https://github.com/mrpaulpopov/online-payment-fraud-detection/actions/workflows/ci.yml/badge.svg)
-## Project Overview 
-This is the project for online detection of fraud transactions, it was based on IEEE-CIS Fraud Detection dataset.
+An end-to-end MLOps pipeline for real-time fraud detection, based on IEEE-CIS Fraud Detection dataset.
 
 During R&D, I made and optimized (with Optuna) two pipelines: LightGBM only and hybrid PyTorch Autoencoder + LightGBM.
 Metrics from MLflow showed that feature Anomaly Score from autoencoder strongly increased metrics on Train set, 
 but on the Test set the key business-metric "Recall @ FPR 5%" was higher with baseline LightGBM pipeline (0.646 vs 0.636).
-For reaching the best principles of MLOps (low latency, lightweight Docker-container, lack of need to Scaler/Imputer),
-for Inference АРІ I choose the baseline LightGBM pipeline.
+To adhere to MLOps best practices (low latency, lightweight Docker container, no need for Scaler/Imputer during inference), I choose the baseline LightGBM pipeline for the production API.
 
 ## Training Data Flow Diagram
 <picture>
@@ -24,9 +22,17 @@ for Inference АРІ I choose the baseline LightGBM pipeline.
 </picture>
 
 ## Technical Stack
-- Infrastructure: Docker Compose, PostgreSQL, FastAPI
+- Infrastructure: Docker Compose, PostgreSQL, FastAPI, Redis
 - ML: PyTorch, LightGBM
 - MLOps & Tracking: MLflow, Optuna
+
+## Key Learnings
+1. Overcame Out-Of-Memory errors during heavy feature loading by implementing SQL chunking (`chunksize`), downcasting datatypes (`float64` to `float32`), and manual garbage collection.
+2. Prevented data leakage by developing time-series train/test split via iloc.
+3. Built dynamic Dockerfiles with override capabilities and orchestrated container startup sequences using custom healthchecks.
+4. Resolved macOS-specific OpenMP segmentation faults (LightGBM vs PyTorch collision), isolated port binding conflicts.
+5. Designed an unsupervised PyTorch Autoencoder
+6. Leveraged SHAP values to explain predictions.
 
 
 ## Data Pipeline & Feature Engineering
@@ -37,13 +43,13 @@ db/02_seed.sql
 db/03_train_features.sql, db/04_test_features.sql
 ```
 
-First of all, I copied the columns information from .csv, then copied all data from .csv to sql-tables. I combined train_transaction и train_identity tables by TransactionID.
+First, I migrated the schema and data from CSV files to PostgreSQL tables. I combined train_transaction и train_identity tables by TransactionID.
 My first behavioral assumption was: card1 = unique user id, _uid1_.
-I tried also to fingerprint users as uid2 = card1_card2, uid3 = card1_card2_addr1, uid4 = card1_card2_addr1_Pemaildomain.
-But it leaded to extreme overfitting in the future.
+I tried also to fingerprint users as `uid2 = card1_card2`, `uid3 = card1_card2_addr1`, `uid4 = card1_card2_addr1_Pemaildomain`.
+However, this led to extreme overfitting, so I kept only the `uid1` identification.
 
 Then I made the aggregates by uid1 with rolling-windows.
-! For prevent data leakage, I made the aggregates with rolling-windows: from the first occurrence to the current.
+! To prevent data leakage, I made the aggregates with rolling-windows: from the first occurrence to the preceding the current one (`ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING`)
 
 ### Behavioral Assumptions
 I made a few behavioral assumptions, the aggregates based on uid1:
@@ -57,36 +63,32 @@ Then I did slight preprocessing in Pandas (dropped columns with (null ratio > 90
 
 Time series split for Train/Val/Test was used to prevent temporal leakage.
 
-### Data Flow Diagram
-```
-X, y = load_data()
-X_train, y_train = train_split()
-X_train_nn = pytorch_preprocessing(X_train)
-X_train['anomaly_score'] = anomaly_scores
-train_data = prepare_data_for_lgbm(X_train)
-```
-
 ## Modeling: Autoencoder + LightGBM
-I made a possibility to run 2 different pipelines: LightGBM with added autoencoder and LightGBM only (baseline).
-My baseline model was LightGBM. However, to help him find anomaly patterns in transactions, I made unsupervised method
-of autoencoding in PyTorch. It returns a new column `anomaly_score`, and then LightGBM trains with it.
+I implemented two training pipelines: LightGBM with added autoencoder and LightGBM only (baseline).
+My baseline model was LightGBM. However, to help it capture anomaly patterns, I developed an unsupervised PyTorch Autoencoder. It returns a new column `anomaly_score`, and then LightGBM trains with it.
+
+#### PyTorch Data Preprocessing
+My strategy was:
+1. Do One-Hot Encoding for string features
+2. Make Imputing and Scaling for numeric features (replace NaN values with mean and calculate std)
+3. Save the list of final features for the inference
+4. Save Imputer and Scaler for the inference
+
 #### Autoencoder
 I used bottleneck method with customizable `latent_dim` (the narrowest part).
 
 ## MLOps & Hyperparameter Tuning
-I made hyperparameters optimization in this order:
+I conducted three hyperparameter tuning phases:
 1. PyTorch HPO. I found the best hyperparameters for PyTorch Autoencoder (including `latent_dim`)
 2. LightGBM HPO with scores from PyTorch. I found the best hyperparameters for LightGBM with anomaly_scores taken from already optimized PyTorch Autoencoder.
-3. LightGBM HPO without scores from PyTorch. I made a comparison of metrics between PyTorch+LightGBM and LightGBM only (baseline pipeline).
-
-
+3. LightGBM HPO without scores from PyTorch. 
+After that, I made a comparison of metrics between PyTorch+LightGBM and LightGBM only (baseline pipeline).
 
 
 ## Threshold Optimization (Math vs. Business)
 I developed two approaches to find it using `precision_recall_curve`:
 ### Business-driven threshold
-Business says: 'You detect a fraud. We want that no more than 5% should be false alerts, because they are good customers
-who will definitely be angry and call us.' - it means that I should maximize the Recall @ FPR 5% .
+Business says: 'No more than 5%  of flagged transactions should be false positives, to avoid blocking and frustrating legitimate customers.' - it means that I should maximize the Recall @ FPR 5% .
 
 However, if the business target is unreachable, mathematical threshold will be used as a fallback.
 
@@ -104,23 +106,22 @@ I also compared the F1-optimal threshold with a business-driven threshold.
 ## Final Model Evaluation
 ### Choosing between two pipelines
 ![plot_pipelines.png](docs/plots/plot_pipelines.png)
-_(I made a custom script to visualize metrics from MLflow using run_id)_
+_(Visualize metrics from MLflow using different run_id)_
 
 As we see, the feature Anomaly Score from autoencoder strongly increased metrics on Train set, 
 but on the Test set the key business-metric "Recall @ FPR 5%" was higher with baseline LightGBM pipeline (0.646 vs 0.636).
-For reaching the best principles of MLOps (low latency, lightweight Docker-container, lack of need to Scaler/Imputer),
-for Inference АРІ I choose the baseline LightGBM pipeline.
+For reasons of low latency, lightweight Docker-container, lack of need to Scaler/Imputer in the inference, I finally choose the baseline LightGBM pipeline.
 
 
 
-
+#### Metrics Description
 - Accuracy metric is pretty useless in this project: dataset has only 3% of fraud. It means that model that always returns 'no fraud' will get 97% of accuracy.
 - Precision = 1 - False Positive Rate, percentage of amount without false alerts.
 - Recall = True Positive Rate, percentage of real fraud detection.
 - ROC-AUC = True Positive Rate / False Positive Rate, how the model classifies the data. 0.5 means random selection, 0.9+	is good.
 - F1 - it's a Precision and Recall harmonic ratio. However, it depends on fixed threshold value.
-- PR-AUC - it's a square under the curve, it doesn't depend on threshold value.
-- Recall@FPR - 'How many fraud alerts we detect if we allow only 1% of false alarms?'. It uses `business_fp_target`.
+- PR-AUC - it's an area under the Precision-Recall curve, it doesn't depend on threshold value.
+- Recall@FPR - 'How many fraud alerts we detect if we allow only X% of false alarms?'. It uses `business_fp_target`.
 
 ![pr_curves_baseline.png](docs/plots/pr_curves_baseline.png)
 
@@ -133,15 +134,14 @@ for Inference АРІ I choose the baseline LightGBM pipeline.
 
 _SHAP values from baseline LightGBM-only pipeline / from Autoencoder + LightGBM pipeline._
 
-As we see, anomaly_scores really helps the LightGBM model to correlate with fraud alerts (aside from the fact that baseline pipeline ended up being better).
+As we see, `anomaly_score` really helps the LightGBM model to correlate with fraud alerts (aside from the fact that baseline pipeline ended up being better).
 Also we see the high correlation with features as P_emaildomain (probably anonymous domains), TransactionAmt.
 
 
 
 ## Optuna Before/After Comparison
 ![plot_optima.png](docs/plots/plot_optima.png)
-As we see, Optuna HPO didn't show a dramatic rise of metrics on the test set; however, it has decreased the overfitting and
-increased the model's stability during the cross-validation (CV PR-AUC was increased from 0.685 to 0.739).
+As we see, Optuna HPO didn't show a dramatic rise of metrics on the test set; however, it has increased the model's stability during the cross-validation (CV PR-AUC was increased from 0.685 to 0.739).
 
 <p>
   <img src="docs/plots/probability_distribution_baseline.png" width="49%">
@@ -158,22 +158,37 @@ _Predicted Probability Distribution Plot AFTER optimization / Predicted Probabil
 _Predicted Probability Distribution Plot AFTER optimization / Predicted Probability Distribution Plot BEFORE optimization._
 
 ## PSI
-Basic PSI monitoring was developed by simple script which calculates PSI between train and test data, 
+Basic PSI monitoring was developed by simple script (runs manually) which calculates PSI between train and test data, 
 and then prints top affecting features (in case of PSI > 0.1).
 It helps to monitor a degradation of the model in production.
 
+## Redis
+A major challenge was calculating aggregates for incoming transactions in real-time. Calculating aggregates in PostgreSQL is slow and unacceptable for the inference,
+so I needed to calculate aggregates on the fly. That's how I added Redis to the project which fetch aggregates in almost O(1).
+
+### Cache Warming
+Because I needed to calculate historical aggregates on the new transactions and on the past transactions, I needed to preload past
+transactions from SQL database in Redis database. I made an SQL query to load lifetime statistics (last transaction time, transaction count,
+the sum of all transactions. And also a query to fetch all the information about transactions and devices from the past 7 days.
+Then this data is loaded to Redis through pipeline.
+
+### Aggregates calculation
+- Before adding a new transaction, I read the time of the last transaction (`hget`, `hset`). 
+- I added the transaction amount to the sum of all (`hincrbyfloat`).
+- To check for new devices, I use a signature devicetype:deviceinfo and then just check the presence (`sismember`). And after this, I created a zkey 'devicetype:deviceinfo: timestamp' for calculating time since last geo change.
+- I calculated rolling windows through `zrange` and different ranges.
+- Also I stored the zkeys 'transaction_id:transaction_amt: now' and subsequently calculated the sum of transactions from the last hour in Python.
+
+### Flushing back to SQL
+I implemented this feature through a manual script which can be launched on demand (e.g. at off-peak hours).
+When Redis receives a new transaction, it copies it to the list `manual_tx_queue`. 
+My script fetches it, puts it to the PostgreSQL database and flushes the queue. Fetching is implemented via `lrange`, flushing is implemented via `ltrim`.
+
 ## API
-This is FastAPI interface which uses **lifespan** pipeline. With launch, service should load into a memory all the data from disk for an inference: models weights, meta-information from json.
+This is FastAPI interface which uses **lifespan** pipeline. On startup, the service loads models weights and JSON metadata into memory.
 
 ### Endpoint /healthcheck (GET)
-This is asynchronous function. It should return:
-```
-health_status = {
-        "api": "ok",
-        "database": "ok",
-        "models": "ok"
-    }
-```
+This is asynchronous function.
 
 1. It uses an asynchronous engine `asyncpg` and tries to execute inside the database: `SELECT 1;`
 2. It checks than model weights were loaded from files into a memory.
@@ -187,17 +202,41 @@ It has a sub-function `apply_business_rules`: simple rules written by business t
 For instance, if amount of the transaction > 500000 and it was made from a new device, it returns: "Blocked by Rule: Huge amount from new device" and returns a fraud alert.
 Only if business rules were passed, inference pipeline would be started.
 
+### Graceful Degradation
+If the inference pipeline falls by any reason, graceful degradation function will start. It contains simple rules.
+
 ## What if I used PyTorch in the inference?
 I would load `num_imputer` and `scaler` files with FastAPI launch. Then I would apply OHE for string values of the new transaction,
 for numeric values I would firstly replace missing values with mean values (from the imputer), then apply z-score for all the numeric values.
 Importantly, the last step before the pytorch inference would be reindexing the features from my previous steps with saved `final_pytorch_features`.
 
-## Inference pipeline
+## Unit Tests
+### API Tests
+It tests FastAPI interface: blocking by business rules and required fields by Pydantic schema.
+It uses pytest fixture to substitute required ML model and Redis.
 
+### Redis Test
+It uses FakeAsyncRedis and my `get_and_update_aggregates` function to check the calculation of aggregates with adding few transaction.
 
+### ML Inference Test
+It receives knowingly fraud or legit transactions (taken from train dataset) and checks what it will return.
 
+### E2E Test
+It combines API and ML inference testing: it sends knowingly fraud transaction through FastAPI interface to the endpoint and checks
+what it will return.
 
-## Fraud Test
+## Response Examples
+
+### Healthcheck
+```
+health_status = {
+        "api": "ok",
+        "database": "ok",
+        "models": "ok",
+        "redis": "ok"
+    }
+```
+### Fraud Transaction
 ```
 {
   "is_fraud": true,
@@ -208,7 +247,7 @@ Importantly, the last step before the pytorch inference would be reindexing the 
 }
 ```
 
-## Legit Test
+### Legit Transaction
 ```
 {
   "is_fraud": false,
@@ -220,16 +259,16 @@ Importantly, the last step before the pytorch inference would be reindexing the 
 ```
 
 
+## Limitations, Known Issues
+#### Local launch on macOS: SIGSEGV when running LightGBM after PyTorch
 
+On macOS, PyTorch and LightGBM both ship their own OpenMP runtime (`libomp`),
+which causes a segfault when both are used in the same process.
 
+My first solution was to limit `num_threads=1` for LightGBM on macOS, which disables the conflicting OpenMP initialization.
+However, I decided to not allow to launch this project locally, only Docker (Linux) runs allowed with full multi-threading.
 
-
-
-
-
-
-
-## How to Run (Docker & GPU)
+## How to Run
 #### CPU Launch
 ```
 docker-compose up -d --build
@@ -256,9 +295,9 @@ docker-compose run --rm training python src/scripts/tune_pytorch_script.py
 docker-compose run --rm training python src/scripts/tune_lgbm_script.py
 ```
 
-#### Tune evaluation standalone  script
+#### PSI calculation script
 ```
-docker-compose run --rm training python -m src.scripts.tune_evaluation_script
+docker-compose run --rm training python src/scripts/data_drift_script.py
 ```
 
 #### Redis to SQL script
@@ -269,39 +308,3 @@ docker-compose run --rm fraud_redis python src/redis/redis_to_sql.py
 ## Kaggle Results
 This project is based on the Kaggle IEEE-CIS Fraud Detection dataset. The model achieved a score of **0.799174** on the public leaderboard.
 However, the primary focus of this project was not to obtain a high score, but to build a complete, production-ready MLOps pipeline.
-![kaggle.png](docs/kaggle.png)
-
-## Limitations, Known Issues
-#### Local launch on macOS: SIGSEGV when running LightGBM after PyTorch
-
-On macOS, PyTorch and LightGBM both ship their own OpenMP runtime (`libomp`),
-which causes a segfault when both are used in the same process.
-
-My first solution was to limit `num_threads=1` for LightGBM on macOS, which disables the conflicting OpenMP initialization.
-However, I decided to not allow to launch this project locally, only Docker (Linux) runs allowed with full multi-threading.
-
-
-
-
-
-
-
-
-Ruff
-
-
-
-
-Чему я научился новому?
-1. Высокое заполнение ram, поэтому периодическое ручное удаление тяжелых элементов и gc.collect. High cardinality. Конвертация float64-float32. Отслеживание потребляемого RAM
-2. Проблема с портом 5000 на macOS, поэтому mapping выходного порта 5001:5000
-3. Docker: порядок выполнения сервисов, conditions, причем выполнение своего тестового запроса.
-4. Проблема OpenMP на macOS
-5. Уровни logging
-6. Чтение большого read_sql через chunksize
-7. Ручное написание аналога train_test_split, работающего по временному ряду (через iloc)
-8. Автоматическая сборка requirements.txt через pipreqs
-9. Проверка fraud drift после разделения данных
-10. Autoencoder (nn на основе самой себя)
-11. Анализ SHAP
-12. Динамический Dockerfile (с override)
