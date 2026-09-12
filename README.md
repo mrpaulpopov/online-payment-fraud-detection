@@ -22,6 +22,32 @@ To adhere to MLOps best practices (low latency, lightweight Docker container, no
   <img alt="Inference Data Flow Diagram" src="docs/diagrams/inference_data_flow_diagram_light.svg">
 </picture>
 
+## Data Flow Diagrams
+
+<table>
+  <tr>
+    <th width="50%">Training Pipeline</th>
+    <th width="50%">Inference API</th>
+  </tr>
+  <tr>
+    <td>
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/training_data_flow_diagram_dark.svg">
+        <source media="(prefers-color-scheme: light)" srcset="docs/diagrams/training_data_flow_diagram_light.svg">
+        <img alt="Training Data Flow Diagram" src="docs/diagrams/training_data_flow_diagram_light.svg" width="100%">
+      </picture>
+    </td>
+    <td>
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/inference_data_flow_diagram_dark.svg">
+        <source media="(prefers-color-scheme: light)" srcset="docs/diagrams/inference_data_flow_diagram_light.svg">
+        <img alt="Inference Data Flow Diagram" src="docs/diagrams/inference_data_flow_diagram_light.svg" width="100%">
+      </picture>
+    </td>
+  </tr>
+</table>
+
+
 ## Technical Stack
 - Infrastructure: Docker Compose, PostgreSQL, FastAPI, Redis
 - ML: PyTorch, LightGBM
