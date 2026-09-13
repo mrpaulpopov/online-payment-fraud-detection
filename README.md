@@ -190,7 +190,7 @@ It helps to monitor a degradation of the model in production.
 
 ## Redis
 A major challenge was calculating aggregates for incoming transactions in real-time. Calculating aggregates in PostgreSQL is slow and unacceptable for the inference,
-so I needed to calculate aggregates on the fly. That's how I added Redis to the project, which fetches aggregates quickly.
+so I needed to calculate aggregates on the fly. That's how I added Redis to the project, which fetches aggregates in O(1) and O(log N) time.
 
 ### Cache Warming
 Because I needed to calculate historical aggregates on the new transactions and on the past transactions, I needed to preload past
