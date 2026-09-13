@@ -8,20 +8,6 @@ Metrics from MLflow showed that feature Anomaly Score from autoencoder strongly 
 but on the Test set the key business-metric "Recall @ FPR 5%" was higher with baseline LightGBM pipeline (0.646 vs 0.636).
 To adhere to MLOps best practices (low latency, lightweight Docker container, no need for Scaler/Imputer during inference), I chose the baseline LightGBM pipeline for the production API.
 
-## Training Data Flow Diagram
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/training_data_flow_diagram_dark.svg">
-  <source media="(prefers-color-scheme: light)" srcset="docs/diagrams/training_data_flow_diagram_light.svg">
-  <img alt="Training Data Flow Diagram" src="docs/diagrams/training_data_flow_diagram_light.svg" width="49%">
-</picture>
-
-## Inference Data Flow Diagram
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/inference_data_flow_diagram_dark.svg">
-  <source media="(prefers-color-scheme: light)" srcset="docs/diagrams/inference_data_flow_diagram_light.svg">
-  <img alt="Inference Data Flow Diagram" src="docs/diagrams/inference_data_flow_diagram_light.svg">
-</picture>
-
 ## Data Flow Diagrams
 
 <table>
