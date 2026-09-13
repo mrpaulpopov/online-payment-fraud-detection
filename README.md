@@ -1,13 +1,11 @@
 # Online Payment Fraud Detection
 ![CI](https://github.com/mrpaulpopov/online-payment-fraud-detection/actions/workflows/ci.yml/badge.svg)
 
-An end-to-end MLOps pipeline for real-time fraud detection, based on IEEE-CIS Fraud Detection dataset.
+An end-to-end MLOps pipeline for real-time fraud detection, based on the IEEE-CIS Fraud Detection dataset.
 
-During R&D, I made and optimized (with Optuna) two pipelines: LightGBM only and hybrid PyTorch Autoencoder + LightGBM.
-Metrics from MLflow showed that feature Anomaly Score from autoencoder strongly increased metrics on Train set, 
-but on the Test set the key business-metric "Recall @ FPR 5%" was higher with baseline LightGBM pipeline (0.646 vs 0.636).
+I built and optimized (using Optuna) two models: a baseline LightGBM and a hybrid PyTorch Autoencoder + LightGBM. MLflow metrics showed that the Autoencoder performed much better on the Train set (which means it started to overfit). However, on the Test set, it gave only a tiny improvement in our key business metric "Recall @ FPR 5%" (0.648 vs 0.646). Also, it was less stable during cross-validation.
 
-To adhere to MLOps best practices (low latency, lightweight Docker container, no need for Scaler/Imputer during inference), I chose the baseline LightGBM pipeline for the production API.
+Deploying a heavy PyTorch model for just a 0.2% improvement has a negative ROI because of higher server costs and complex infrastructure. Therefore, I chose the baseline LightGBM for the production API. This perfectly follows MLOps best practices: low latency, a lightweight Docker container, and no need for external Scalers/Imputers during inference.
 
 ## Data Flow Diagrams
 
