@@ -6,6 +6,7 @@ An end-to-end MLOps pipeline for real-time fraud detection, based on IEEE-CIS Fr
 During R&D, I made and optimized (with Optuna) two pipelines: LightGBM only and hybrid PyTorch Autoencoder + LightGBM.
 Metrics from MLflow showed that feature Anomaly Score from autoencoder strongly increased metrics on Train set, 
 but on the Test set the key business-metric "Recall @ FPR 5%" was higher with baseline LightGBM pipeline (0.646 vs 0.636).
+
 To adhere to MLOps best practices (low latency, lightweight Docker container, no need for Scaler/Imputer during inference), I chose the baseline LightGBM pipeline for the production API.
 
 ## Data Flow Diagrams
@@ -44,7 +45,7 @@ To adhere to MLOps best practices (low latency, lightweight Docker container, no
 2. Prevented temporal leakage by using chronological train/test split, ensuring that transactions from the future were never used to train the model on earlier transactions.
 3. Built dynamic Dockerfiles with override capabilities and orchestrated container startup sequences using custom healthchecks.
 4. Resolved macOS-specific OpenMP segmentation faults (LightGBM vs PyTorch collision), and isolated port binding conflicts.
-5. Designed an unsupervised PyTorch Autoencoder
+5. Designed an unsupervised PyTorch Autoencoder.
 6. Leveraged SHAP values to explain predictions.
 
 
@@ -57,21 +58,23 @@ db/03_train_features.sql, db/04_test_features.sql
 ```
 
 First, I migrated the schema and data from CSV files to PostgreSQL tables and combined them by TransactionID.
-My first behavioral assumption was: card1 = unique user id, _uid1_.
+My first behavioral assumption was: card1 = unique user id, `uid1`.
 I experimented with more specific pseudo-identifiers: `uid2 = card1_card2`, `uid3 = card1_card2_addr1`, `uid4 = card1_card2_addr1_Pemaildomain`.
 These features produced severe overfitting, so I removed them and kept the simpler `uid1` representation.
 
 Then I made the aggregates by `uid1` with rolling-windows.
+
 Note: To prevent data leakage, I calculated the rolling-windows aggregates from the first occurrence up to the row preceding the current one (`ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING`)
 
 ### Behavioral Assumptions
-I made several behavioral assumptions and built the following aggregates based on uid1:
+I made several behavioral assumptions and built the following aggregates based on `uid1`:
 - Count of transactions for the last 5m, 1h, 24h, 7d,
 - Time since last transaction,
 - Amount of transactions for the last hour,
 - Ratio amount/average transaction per user,
 - Time since last geo change,
 - Novelty of the device, for each mobile and desktop type.
+
 Then I did slight preprocessing in Pandas (dropped columns with (null ratio > 90%), sorted by transaction time).
 
 Time series split for Train/Val/Test was used to prevent temporal leakage.
@@ -102,7 +105,7 @@ After that, I made a comparison of metrics between PyTorch+LightGBM and LightGBM
 I developed two approaches to find it using `precision_recall_curve`:
 ### Business-driven threshold
 The business requirement was to maximize fraud detection recall while keeping the False Positive Rate (FPR) at or below a certain value, for instance 5%.
-However, if the business target is unreachable, mathematical threshold will be used as a fallback.
+However, if the business target is unreachable, F1-optimal threshold will be used as a fallback.
 
 ### F1-optimal Threshold
 It uses the f1-formula and gets a recall and a precision from the best F1-ratio.
@@ -118,12 +121,11 @@ I also compared the F1-optimal threshold with a business-driven threshold.
 ## Final Model Evaluation
 ### Choosing between two pipelines
 ![plot_pipelines.png](docs/plots/plot_pipelines.png)
-_(Visualize metrics from MLflow using different run_id)_
+_(Visualizing metrics from MLflow using different run_id)_
 
-As we see, the feature Anomaly Score from autoencoder strongly increased metrics on Train set, 
-but on the Test set the key business-metric "Recall @ FPR 5%" was higher with baseline LightGBM pipeline (0.646 vs 0.636).
-For reasons of low latency, lightweight Docker-container, lack of need to Scaler/Imputer in the inference, I finally chose the baseline LightGBM pipeline.
+Given this microscopic difference in test performance, bringing a deep learning framework into the inference environment has a negative ROI. The tiny 0.2% gain in fraud detection does not justify the massive increase in infrastructure complexity, compute costs, and latency.
 
+To adhere to MLOps best practices (lightweight Docker container, fast inference, no need for Scalers/Imputers), I confidently chose the baseline LightGBM pipeline for the production API.
 
 
 #### Metrics Description
