@@ -5,7 +5,7 @@ An end-to-end MLOps pipeline for real-time fraud detection, based on the IEEE-CI
 
 I built and optimized (using Optuna) two models: a baseline LightGBM and a hybrid PyTorch Autoencoder + LightGBM. MLflow metrics showed that the Autoencoder performed much better on the Train set (which means it started to overfit). However, on the Test set, it gave only a tiny improvement in our key business metric "Recall @ FPR 5%" (0.648 vs 0.646). Also, it was less stable during cross-validation.
 
-Deploying a heavy PyTorch model for just a 0.2% improvement has a negative ROI because of higher server costs and complex infrastructure. Therefore, I chose the baseline LightGBM for the production API. This perfectly follows MLOps best practices: low latency, a lightweight Docker container, and no need for external Scalers/Imputers during inference.
+Deploying a heavy PyTorch model for just a 0.2% improvement has a negative ROI because of higher server costs and complex infrastructure. Therefore, I chose the baseline LightGBM for the production API. This follows MLOps best practices: low latency, a lightweight Docker container, and no need for external Scalers/Imputers during inference.
 
 ## Data Flow Diagrams
 
@@ -62,7 +62,7 @@ These features produced severe overfitting, so I removed them and kept the simpl
 
 Then I made the aggregates by `uid1` with rolling-windows.
 
-Note: To prevent data leakage, I calculated the rolling-windows aggregates from the first occurrence up to the row preceding the current one (`ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING`)
+Note: To prevent data leakage, I calculated the rolling-windows aggregates from the first occurrence up to the row preceding the current one (`ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING`).
 
 ### Behavioral Assumptions
 I made several behavioral assumptions and built the following aggregates based on `uid1`:
@@ -83,10 +83,10 @@ My baseline model was LightGBM. However, to help it capture anomaly patterns, I 
 
 #### PyTorch Data Preprocessing
 My strategy was:
-1. Do One-Hot Encoding for string features
-2. Make Imputing and Scaling for numeric features (replace NaN values with mean and calculate std)
-3. Save the list of final features for the inference
-4. Save Imputer and Scaler for the inference
+1. Do One-Hot Encoding for string features,
+2. Make Imputing and Scaling for numeric features (replace NaN values with mean and calculate std),
+3. Save the list of final features for the inference,
+4. Save Imputer and Scaler for the inference.
 
 #### Autoencoder
 I used a bottleneck method with customizable `latent_dim` (the narrowest part).
@@ -110,9 +110,7 @@ It uses the f1-formula and gets a recall and a precision from the best F1-ratio.
 
 ### Predicted Probability Distribution (Density) Plot
 ![probability_distribution_lgbm.png](docs/plots/probability_distribution_baseline.png)
-This histogram visualizes how well the model separates the two classes by showing the distribution of predicted fraud probabilities for each class.
-Each histogram is normalized independently, so the area under each distribution equals 1.
-This plot helps visualize how well the model separates the two classes and where a decision threshold can be placed.
+This histogram visualizes how well the model separates the two classes by showing the distribution of predicted fraud probabilities for each class and where a decision threshold can be placed.
 I also compared the F1-optimal threshold with a business-driven threshold.
 
 
@@ -120,20 +118,12 @@ I also compared the F1-optimal threshold with a business-driven threshold.
 ### Choosing between two pipelines
 ![plot_pipelines.png](docs/plots/plot_pipelines.png)
 _(Visualizing metrics from MLflow using different run_id)_
+Due to severe class imbalance (only 3% of transactions are fraud), standard metric Accuracy is misleading. Therefore, the focus was places on PR-AUC and business-specific metrics.
 
 Given this microscopic difference in test performance, bringing a deep learning framework into the inference environment has a negative ROI. The tiny 0.2% gain in fraud detection does not justify the massive increase in infrastructure complexity, compute costs, and latency.
 
 To adhere to MLOps best practices (lightweight Docker container, fast inference, no need for Scalers/Imputers), I confidently chose the baseline LightGBM pipeline for the production API.
 
-
-#### Metrics Description
-- Accuracy metric is pretty useless in this project: dataset has only 3% of fraud. It means that model that always returns 'no fraud' will get 97% of accuracy.
-- Precision - percentage of true fraud among all flagged transactions (minimizes false alarms).
-- Recall (True Positive Rate) - percentage of actual fraud successfully detected.
-- ROC-AUC — Area Under the Receiver Operating Characteristic curve. It measures how well the model ranks positive examples above negative examples across different classification thresholds.
-- F1 - it's a Precision and Recall harmonic ratio. However, it depends on fixed threshold value.
-- PR-AUC - Area Under the Precision-Recall curve; it evaluates the model independently of the decision threshold.
-- Recall@FPR - 'How many fraud alerts we detect if we allow only X% of false alarms?'. It uses `business_fp_target`.
 
 ![pr_curves_baseline.png](docs/plots/pr_curves_baseline.png)
 
