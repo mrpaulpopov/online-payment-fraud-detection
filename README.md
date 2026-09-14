@@ -56,6 +56,7 @@ Deploying a heavy PyTorch model for just a 0.2% improvement has a negative ROI b
 
 
 During the migration, I combined the `train_transaction` and `train_identity` tables by `TransactionID`.
+
 My first behavioral assumption was: `card1` = unique user id, `uid1`.
 I experimented with more specific pseudo-identifiers: `uid2 = card1_card2`, `uid3 = card1_card2_addr1`, `uid4 = card1_card2_addr1_Pemaildomain`.
 These features produced severe overfitting, so I removed them and kept the simpler `uid1` representation.
@@ -79,6 +80,7 @@ Time series split for Train/Val/Test was used to prevent temporal leakage.
 
 ## Modeling: Autoencoder + LightGBM
 I implemented two training pipelines: LightGBM with added autoencoder and LightGBM only (baseline).
+
 My baseline model was LightGBM. However, to help it capture anomaly patterns, I developed an unsupervised PyTorch Autoencoder. It returns a new column `anomaly_score`, and then LightGBM trains with it.
 
 #### PyTorch Data Preprocessing
@@ -93,7 +95,7 @@ I used a bottleneck method with customizable `latent_dim` (the narrowest part).
 
 ## MLOps & Hyperparameter Tuning
 I conducted three hyperparameter tuning phases:
-1. PyTorch HPO. I found the best hyperparameters for PyTorch Autoencoder (including `latent_dim`)
+1. PyTorch HPO. I found the best hyperparameters for PyTorch Autoencoder (including `latent_dim`).
 2. LightGBM HPO with scores from PyTorch. I found the best hyperparameters for LightGBM with anomaly_scores taken from already optimized PyTorch Autoencoder.
 3. LightGBM HPO without scores from PyTorch. 
 After that, I made a comparison of metrics between PyTorch+LightGBM and LightGBM only (baseline pipeline).
@@ -118,6 +120,7 @@ I also compared the F1-optimal threshold with a business-driven threshold.
 ### Choosing between two pipelines
 ![plot_pipelines.png](docs/plots/plot_pipelines.png)
 _(Visualizing metrics from MLflow using different run_id)_
+
 Due to severe class imbalance (only 3% of transactions are fraud), standard metric Accuracy is misleading. Therefore, the focus was places on PR-AUC and business-specific metrics.
 
 Given this microscopic difference in test performance, bringing a deep learning framework into the inference environment has a negative ROI. The tiny 0.2% gain in fraud detection does not justify the massive increase in infrastructure complexity, compute costs, and latency.
