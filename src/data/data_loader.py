@@ -33,7 +33,7 @@ def load_data(table_name: str) -> tuple[pd.DataFrame, pd.Series, pd.DataFrame]:
         # df = pd.read_sql(query, connection)
 
     df = df.sort_values("TransactionDT")
-    df = df.reset_index(drop=True) # советуют после сортировки
+    df = df.reset_index(drop=True) # is advised after the sort
 
     if "isFraud" in df.columns:
         y = df["isFraud"]
