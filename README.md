@@ -40,23 +40,23 @@ Deploying a heavy PyTorch model for just a 0.2% improvement has a negative ROI b
 
 ## Key Learnings
 1. Overcame Out-Of-Memory errors during heavy feature loading by implementing SQL chunking (`chunksize`), downcasting datatypes (`float64` to `float32`), and manual garbage collection.
-2. Prevented temporal leakage by using chronological train/test split, ensuring that transactions from the future were never used to train the model on earlier transactions.
-3. Built dynamic Dockerfiles with override capabilities and orchestrated container startup sequences using custom healthchecks.
-4. Resolved macOS-specific OpenMP segmentation faults (LightGBM vs PyTorch collision), and isolated port binding conflicts.
+2. Resolved macOS-specific OpenMP segmentation faults (LightGBM vs PyTorch collision), and isolated port binding conflicts.
+3. Prevented temporal leakage by using chronological train/test split, ensuring that transactions from the future were never used to train the model on earlier transactions.
+4. Built dynamic Dockerfiles with override capabilities and orchestrated container startup sequences using custom healthchecks.
 5. Designed an unsupervised PyTorch Autoencoder.
 6. Leveraged SHAP values to explain predictions.
 
 
 ## Data Pipeline & Feature Engineering
-```
-src/scripts/create_table_script.py
-db/01_schema.sql
-db/02_seed.sql
-db/03_train_features.sql, db/04_test_features.sql
-```
 
-First, I migrated the schema and data from CSV files to PostgreSQL tables and combined them by TransactionID.
-My first behavioral assumption was: card1 = unique user id, `uid1`.
+**Execution Flow**
+1. `src/scripts/create_table_script.py` - migrates the raw data from CSV files to PostgreSQL.
+2. `db/01_schema.sql` & `db/02_seed.sql` - initialize the database schema and seed the initial data.
+3. `db/03_train_features.sql` & `db/04_test_features.sql` - generate window-function aggregates.
+
+
+During the migration, I combined the `train_transaction` and `train_identity` tables by `TransactionID`.
+My first behavioral assumption was: `card1` = unique user id, `uid1`.
 I experimented with more specific pseudo-identifiers: `uid2 = card1_card2`, `uid3 = card1_card2_addr1`, `uid4 = card1_card2_addr1_Pemaildomain`.
 These features produced severe overfitting, so I removed them and kept the simpler `uid1` representation.
 
