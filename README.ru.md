@@ -45,6 +45,39 @@
 5. Спроектировал PyTorch Autoencoder для обучения без учителя.
 6. Использовал SHAP values для интерпретации предсказаний модели.
 
+## Примеры ответов API
+
+### Фродовая транзакция (Fraud Transaction)
+```json
+{
+  "is_fraud": true,
+  "fraud_probability": 0.9113,
+  "action": "BLOCK",
+  "reason": "Fraud (Blocked by ML, probability: 91.1%)",
+  "latency_ms": 79.01
+}
+```
+
+### Легитимная транзакция (Legit Transaction)
+```json
+{
+  "is_fraud": false,
+  "fraud_probability": 0.0053,
+  "action": "APPROVE",
+  "reason": "Legit (Passed ML)",
+  "latency_ms": 77.58
+}
+```
+
+### Healthcheck
+```json
+{
+        "api": "ok",
+        "database": "ok",
+        "models": "ok",
+        "redis": "ok"
+}
+```
 
 ## Data Pipeline и Feature Engineering
 
@@ -209,38 +242,6 @@ ML пайплайн инференса запускается только в т
 ### E2E Тест (Сквозной)
 Объединяет тестирование API и ML: отправляет заведомо фродовую транзакцию через интерфейс FastAPI на эндпоинт и проверяет итоговый ответ системы.
 
-## Примеры ответов
-### Healthcheck
-```json
-{
-        "api": "ok",
-        "database": "ok",
-        "models": "ok",
-        "redis": "ok"
-}
-```
-
-### Фродовая транзакция (Fraud Transaction)
-```json
-{
-  "is_fraud": true,
-  "fraud_probability": 0.9113,
-  "action": "BLOCK",
-  "reason": "Fraud (Blocked by ML, probability: 91.1%)",
-  "latency_ms": 79.01
-}
-```
-
-### Легитимная транзакция (Legit Transaction)
-```json
-{
-  "is_fraud": false,
-  "fraud_probability": 0.0053,
-  "action": "APPROVE",
-  "reason": "Legit (Passed ML)",
-  "latency_ms": 77.58
-}
-```
 
 ## Ограничения и известные проблемы проекта
 #### Локальный запуск на macOS: SIGSEGV при запуске LightGBM после PyTorch

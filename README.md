@@ -46,6 +46,39 @@ Deploying a heavy PyTorch model for just a 0.2% improvement has a negative ROI b
 5. Designed an unsupervised PyTorch Autoencoder.
 6. Leveraged SHAP values to explain predictions.
 
+## API Response Examples
+
+### Fraud Transaction
+```json
+{
+  "is_fraud": true,
+  "fraud_probability": 0.9113,
+  "action": "BLOCK",
+  "reason": "Fraud (Blocked by ML, probability: 91.1%)",
+  "latency_ms": 79.01
+}
+```
+
+### Legit Transaction
+```json
+{
+  "is_fraud": false,
+  "fraud_probability": 0.0053,
+  "action": "APPROVE",
+  "reason": "Legit (Passed ML)",
+  "latency_ms": 77.58
+}
+```
+
+### Healthcheck
+```json
+{
+        "api": "ok",
+        "database": "ok",
+        "models": "ok",
+        "redis": "ok"
+}
+```
 
 ## Data Pipeline & Feature Engineering
 
@@ -225,39 +258,6 @@ It receives known fraudulent or legitimate transactions (taken from train datase
 ### E2E Test
 It combines API and ML inference testing: it sends knowingly fraud transaction through FastAPI interface to the endpoint and checks
 what it will return.
-
-## Response Examples
-
-### Healthcheck
-```json
-{
-        "api": "ok",
-        "database": "ok",
-        "models": "ok",
-        "redis": "ok"
-}
-```
-### Fraud Transaction
-```json
-{
-  "is_fraud": true,
-  "fraud_probability": 0.9113,
-  "action": "BLOCK",
-  "reason": "Fraud (Blocked by ML, probability: 91.1%)",
-  "latency_ms": 79.01
-}
-```
-
-### Legit Transaction
-```json
-{
-  "is_fraud": false,
-  "fraud_probability": 0.0053,
-  "action": "APPROVE",
-  "reason": "Legit (Passed ML)",
-  "latency_ms": 77.58
-}
-```
 
 
 ## Limitations, Known Issues
