@@ -112,8 +112,8 @@ It uses the f1-formula and gets a recall and a precision from the best F1-ratio.
 
 ### Predicted Probability Distribution (Density) Plot
 ![probability_distribution_lgbm.png](docs/plots/probability_distribution_baseline.png)
-This histogram visualizes how well the model separates the two classes by showing the distribution of predicted fraud probabilities for each class and where a decision threshold can be placed.
-I also compared the F1-optimal threshold with a business-driven threshold.
+_(This histogram visualizes how well the model separates the two classes by showing the distribution of predicted fraud probabilities for each class and where a decision threshold can be placed.
+I also compared the F1-optimal threshold with a business-driven threshold.)_
 
 
 ## Final Model Evaluation
@@ -133,7 +133,7 @@ Due to severe class imbalance (only 3% of transactions are fraud), standard metr
   <img src="docs/plots/shap_values_pt.png" width="49%">
 </p>
 
-_SHAP values from baseline LightGBM-only pipeline / from Autoencoder + LightGBM pipeline._
+_SHAP values from BASELINE LightGBM-only pipeline / from Autoencoder + LightGBM pipeline._
 
 As we see, `anomaly_score` really helps the LightGBM model to correlate with fraud alerts (aside from the fact that baseline pipeline ended up being better).
 Also we see the high correlation with features such as `P_emaildomain` (probably anonymous domains), `TransactionAmt`.
