@@ -42,7 +42,7 @@ Deploying a heavy PyTorch model for just a 0.2% improvement has a negative ROI b
 1. Overcame Out-Of-Memory errors during heavy feature loading by implementing SQL chunking (`chunksize`), downcasting datatypes (`float64` to `float32`), and manual garbage collection.
 2. Resolved macOS-specific OpenMP segmentation faults (LightGBM vs PyTorch collision), and isolated port binding conflicts.
 3. Prevented temporal leakage by using chronological train/test split, ensuring that transactions from the future were never used to train the model on earlier transactions.
-4. Built dynamic Dockerfiles with override capabilities and orchestrated container startup sequences using custom healthchecks.
+4. Used Docker Comnpose overrides for flexible execution environments (CPU/GPU) and orchestrated container startup sequences using custom healthchecks.
 5. Designed an unsupervised PyTorch Autoencoder.
 6. Leveraged SHAP values to explain predictions.
 
@@ -100,9 +100,9 @@ I conducted three hyperparameter tuning phases:
 3. LightGBM HPO without scores from PyTorch. 
 After that, I made a comparison of metrics between PyTorch+LightGBM and LightGBM only (baseline pipeline).
 
-
 ## Threshold Selection
 I developed two approaches to find it using `precision_recall_curve`:
+
 ### Business-driven threshold
 The business requirement was to maximize fraud detection recall while keeping the False Positive Rate (FPR) at or below a certain value, for instance 5%.
 However, if the business target is unreachable, the F1-optimal threshold will be used as a fallback.
@@ -176,7 +176,7 @@ Then this data is loaded to Redis through pipeline.
 ### Aggregates calculation
 - Before adding a new transaction, I read the time of the last transaction (`hget`, `hset`). 
 - I added the transaction amount to the sum of all (`hincrbyfloat`).
-- To check for new devices, I use a signature `devicetype:deviceinfo` and then just check the presence (`sismember`). And after this, I created a zkey 'devicetype:deviceinfo: timestamp' for calculating time since last geo change.
+- To check for new devices, I use a signature `devicetype:deviceinfo` and then just check the presence (`sismember`). And after this, I created a zkey `devicetype:deviceinfo: timestamp` for calculating time since last geo change.
 - I calculated rolling windows through `zrange` and different ranges.
 - Also I stored the zkeys `transaction_id:transaction_amt: now` and subsequently calculated the sum of transactions from the last hour in Python.
 
