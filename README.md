@@ -1,7 +1,5 @@
 # Online Payment Fraud Detection
-![CI](https://github.com/mrpaulpopov/online-payment-fraud-detection/actions/workflows/ci.yml/badge.svg)
-
-[Русская версия](README.ru.md) | English version
+![CI](https://github.com/mrpaulpopov/online-payment-fraud-detection/actions/workflows/ci.yml/badge.svg) [Русская версия](README.ru.md) | English version
 
 An end-to-end MLOps pipeline for real-time fraud detection, based on the IEEE-CIS Fraud Detection dataset.
 

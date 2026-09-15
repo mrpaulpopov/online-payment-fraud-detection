@@ -1,7 +1,5 @@
 # Обнаружение мошенничества с онлайн-платежами (Online Payment Fraud Detection)
-![CI](https://github.com/mrpaulpopov/online-payment-fraud-detection/actions/workflows/ci.yml/badge.svg)
-
-Русская версия | [English version](README.md)
+![CI](https://github.com/mrpaulpopov/online-payment-fraud-detection/actions/workflows/ci.yml/badge.svg) Русская версия | [English version](README.md)
 
 Полноценный (end-to-end) MLOps пайплайн для выявления фрода в реальном времени, основанный на датасете IEEE-CIS Fraud Detection.
 
