@@ -63,7 +63,7 @@ These features produced severe overfitting, so I removed them and kept the simpl
 
 Then I made the aggregates by `uid1` with rolling-windows.
 
-Note: To prevent data leakage, I calculated the rolling-windows aggregates from the first occurrence up to the row preceding the current one (`ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING`).
+Note: To prevent data leakage, I calculated the rolling-window aggregates from the first occurrence up to the row preceding the current one (`ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING`).
 
 ### Behavioral Assumptions
 I made several behavioral assumptions and built the following aggregates based on `uid1`:
@@ -74,7 +74,7 @@ I made several behavioral assumptions and built the following aggregates based o
 - Time since last geo change,
 - Novelty of the device, for each mobile and desktop type.
 
-Then I did slight preprocessing in Pandas (dropped columns with (null ratio > 90%), sorted by transaction time).
+Then I did slight preprocessing in Pandas (dropped columns with a null ratio > 90%, sorted by transaction time).
 
 Time series split for Train/Val/Test was used to prevent temporal leakage.
 
@@ -86,7 +86,7 @@ My baseline model was LightGBM. However, to help it capture anomaly patterns, I 
 #### PyTorch Data Preprocessing
 My strategy was:
 1. Do One-Hot Encoding for string features,
-2. Make Imputing and Scaling for numeric features (replace NaN values with mean and calculate std),
+2. Apply Imputing and Scaling for numeric features (replace NaN values with mean and calculate std),
 3. Save the list of final features for the inference,
 4. Save Imputer and Scaler for the inference.
 
@@ -105,7 +105,7 @@ After that, I made a comparison of metrics between PyTorch+LightGBM and LightGBM
 I developed two approaches to find it using `precision_recall_curve`:
 ### Business-driven threshold
 The business requirement was to maximize fraud detection recall while keeping the False Positive Rate (FPR) at or below a certain value, for instance 5%.
-However, if the business target is unreachable, F1-optimal threshold will be used as a fallback.
+However, if the business target is unreachable, the F1-optimal threshold will be used as a fallback.
 
 ### F1-optimal Threshold
 It uses the f1-formula and gets a recall and a precision from the best F1-ratio.
@@ -121,11 +121,7 @@ I also compared the F1-optimal threshold with a business-driven threshold.
 ![plot_pipelines.png](docs/plots/plot_pipelines.png)
 _(Visualizing metrics from MLflow using different run_id)_
 
-Due to severe class imbalance (only 3% of transactions are fraud), standard metric Accuracy is misleading. Therefore, the focus was places on PR-AUC and business-specific metrics.
-
-Given this microscopic difference in test performance, bringing a deep learning framework into the inference environment has a negative ROI. The tiny 0.2% gain in fraud detection does not justify the massive increase in infrastructure complexity, compute costs, and latency.
-
-To adhere to MLOps best practices (lightweight Docker container, fast inference, no need for Scalers/Imputers), I confidently chose the baseline LightGBM pipeline for the production API.
+Due to severe class imbalance (only 3% of transactions are fraud), standard metric Accuracy is misleading. Therefore, the focus was placed on PR-AUC and business-specific metrics.
 
 
 ![pr_curves_baseline.png](docs/plots/pr_curves_baseline.png)
@@ -140,7 +136,7 @@ To adhere to MLOps best practices (lightweight Docker container, fast inference,
 _SHAP values from baseline LightGBM-only pipeline / from Autoencoder + LightGBM pipeline._
 
 As we see, `anomaly_score` really helps the LightGBM model to correlate with fraud alerts (aside from the fact that baseline pipeline ended up being better).
-Also we see the high correlation with features as P_emaildomain (probably anonymous domains), TransactionAmt.
+Also we see the high correlation with features such as `P_emaildomain` (probably anonymous domains), `TransactionAmt`.
 
 
 
@@ -153,17 +149,17 @@ As we see, Optuna HPO didn't show a dramatic rise of metrics on the test set; ho
   <img src="docs/plots/probability_distribution_un.png" width="49%">
 </p>
 
-_Predicted Probability Distribution Plot AFTER optimization / Predicted Probability Distribution Plot BEFORE optimization._
+_Predicted Probability Distribution Plot AFTER optimization / BEFORE optimization._
 
 <p>
   <img src="docs/plots/pr_curves_baseline.png" width="49%">
   <img src="docs/plots/pr_curves_un.png" width="49%">
 </p>
 
-_Predicted Probability Distribution Plot AFTER optimization / Predicted Probability Distribution Plot BEFORE optimization._
+_Predicted Probability Distribution Plot AFTER optimization / BEFORE optimization._
 
 ## PSI
-Basic PSI monitoring was developed by simple script (runs manually) which calculates PSI between train and test data, 
+Basic PSI monitoring was developed by a simple script (runs manually) which calculates PSI between train and test data, 
 and then prints top affecting features (in case of PSI > 0.1).
 It helps to monitor a degradation of the model in production.
 
@@ -180,9 +176,9 @@ Then this data is loaded to Redis through pipeline.
 ### Aggregates calculation
 - Before adding a new transaction, I read the time of the last transaction (`hget`, `hset`). 
 - I added the transaction amount to the sum of all (`hincrbyfloat`).
-- To check for new devices, I use a signature devicetype:deviceinfo and then just check the presence (`sismember`). And after this, I created a zkey 'devicetype:deviceinfo: timestamp' for calculating time since last geo change.
+- To check for new devices, I use a signature `devicetype:deviceinfo` and then just check the presence (`sismember`). And after this, I created a zkey 'devicetype:deviceinfo: timestamp' for calculating time since last geo change.
 - I calculated rolling windows through `zrange` and different ranges.
-- Also I stored the zkeys 'transaction_id:transaction_amt: now' and subsequently calculated the sum of transactions from the last hour in Python.
+- Also I stored the zkeys `transaction_id:transaction_amt: now` and subsequently calculated the sum of transactions from the last hour in Python.
 
 ### Flushing back to SQL
 I implemented this feature through a manual script which can be launched on demand (e.g. at off-peak hours).
@@ -203,7 +199,7 @@ First of all, the endpoint is protected by an API-key dependency. Pydantic valid
 Then it sends input data and meta-data into a service `process_payment`.
 
 ### Service process_payment
-It has a sub-function `apply_business_rules`: simple rules written by business that definitely leads to fraud alert.
+It has a sub-function `apply_business_rules`: simple rules written by business that definitely lead to a fraud alert.
 For instance, if amount of the transaction > 500000 and it was made from a new device, it returns: "Blocked by Rule: Huge amount from new device" and returns a fraud alert.
 The ML inference pipeline is triggered only if the transaction passes the business rules.
 
@@ -211,7 +207,7 @@ The ML inference pipeline is triggered only if the transaction passes the busine
 If ML inference becomes unavailable, the graceful degradation fallback is triggered. It contains simple rules.
 
 ## What if I used PyTorch in the inference?
-I would load `num_imputer` and `scaler` files with FastAPI launch. Then I would apply OHE for string values of the new transaction,
+I would load `num_imputer` and `scaler` files during FastAPI startup. Then I would apply OHE for string values of the new transaction,
 for numeric values I would firstly replace missing values with mean values (from the imputer), then apply z-score for all the numeric values.
 Importantly, the last step before the pytorch inference would be reindexing the features from my previous steps with saved `final_pytorch_features`.
 
@@ -221,10 +217,10 @@ It tests FastAPI interface: blocking by business rules and required fields by Py
 It uses pytest fixture to substitute required ML model and Redis.
 
 ### Redis Test
-It uses FakeAsyncRedis and my `get_and_update_aggregates` function to check the calculation of aggregates with adding few transaction.
+It uses FakeAsyncRedis and my `get_and_update_aggregates` function to check the calculation of aggregates with adding a few transaction.
 
 ### ML Inference Test
-It receives knowingly fraud or legit transactions (taken from train dataset) and checks what it will return.
+It receives known fraudulent or legitimate transactions (taken from train dataset) and checks what it will return.
 
 ### E2E Test
 It combines API and ML inference testing: it sends knowingly fraud transaction through FastAPI interface to the endpoint and checks
@@ -294,7 +290,7 @@ localhost:5001/#/experiments/1/runs
 localhost:8000
 ```
 
-#### Optuna hyperparameters optimization
+#### Optuna Hyperparameters Optimization
 ```
 docker-compose run --rm training python src/scripts/tune_pytorch_script.py
 docker-compose run --rm training python src/scripts/tune_lgbm_script.py
