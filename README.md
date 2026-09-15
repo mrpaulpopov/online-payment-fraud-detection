@@ -1,6 +1,8 @@
 # Online Payment Fraud Detection
 ![CI](https://github.com/mrpaulpopov/online-payment-fraud-detection/actions/workflows/ci.yml/badge.svg)
 
+[Русская версия](README.ru.md) | English version
+
 An end-to-end MLOps pipeline for real-time fraud detection, based on the IEEE-CIS Fraud Detection dataset.
 
 I built and optimized (using Optuna) two models: a baseline LightGBM and a hybrid PyTorch Autoencoder + LightGBM. MLflow metrics showed that the Autoencoder performed much better on the Train set (which means it started to overfit). However, on the Test set, it gave only a tiny improvement in our key business metric "Recall @ FPR 5%" (0.648 vs 0.646). Also, it was less stable during cross-validation.
@@ -229,16 +231,16 @@ what it will return.
 ## Response Examples
 
 ### Healthcheck
-```
-health_status = {
+```json
+{
         "api": "ok",
         "database": "ok",
         "models": "ok",
         "redis": "ok"
-    }
+}
 ```
 ### Fraud Transaction
-```
+```json
 {
   "is_fraud": true,
   "fraud_probability": 0.9113,
@@ -249,7 +251,7 @@ health_status = {
 ```
 
 ### Legit Transaction
-```
+```json
 {
   "is_fraud": false,
   "fraud_probability": 0.0053,

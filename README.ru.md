@@ -1,6 +1,8 @@
 # Обнаружение мошенничества с онлайн-платежами (Online Payment Fraud Detection)
 ![CI](https://github.com/mrpaulpopov/online-payment-fraud-detection/actions/workflows/ci.yml/badge.svg)
 
+Русская версия | [English version](README.md)
+
 Полноценный (end-to-end) MLOps пайплайн для выявления фрода в реальном времени, основанный на датасете IEEE-CIS Fraud Detection.
 
 Я разработал и оптимизировал (с помощью Optuna) две модели: baseline LightGBM и гибридную PyTorch Autoencoder + LightGBM. Метрики MLflow показали, что автоэнкодер отработал намного лучше на обучающей выборке, что говорит о начале переобучения. Однако на тестовой выборке он дал лишь крошечное улучшение нашей ключевой бизнес-метрики "Recall @ FPR 5%" (0.648 против 0.646). Кроме того, гибридная модель показала меньшую стабильность на кросс-валидации.
