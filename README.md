@@ -40,11 +40,11 @@ Deploying a heavy PyTorch model for just a 0.2% improvement has a negative ROI b
 
 ## Key Learnings
 1. Overcame Out-Of-Memory errors during heavy feature loading by implementing SQL chunking (`chunksize`), downcasting datatypes (`float64` to `float32`), and manual garbage collection.
-2. Resolved macOS-specific OpenMP segmentation faults (LightGBM vs PyTorch collision), and isolated port binding conflicts.
-3. Prevented temporal leakage by using chronological train/test split, ensuring that transactions from the future were never used to train the model on earlier transactions.
-4. Used Docker Comnpose overrides for flexible execution environments (CPU/GPU) and orchestrated container startup sequences using custom healthchecks.
-5. Designed an unsupervised PyTorch Autoencoder.
-6. Leveraged SHAP values to explain predictions.
+2. Prevented temporal leakage by using chronological train/test split, ensuring that transactions from the future were never used to train the model on earlier transactions.
+3. Used Docker Comnpose overrides for flexible execution environments (CPU/GPU) and orchestrated container startup sequences using custom healthchecks.
+4. Designed an unsupervised PyTorch Autoencoder.
+5. Leveraged SHAP values to explain predictions.
+6. Resolved macOS-specific OpenMP segmentation faults (LightGBM vs PyTorch collision), and isolated port binding conflicts.
 
 ## API Response Examples
 
@@ -90,15 +90,15 @@ Deploying a heavy PyTorch model for just a 0.2% improvement has a negative ROI b
 
 During the migration, I combined the `train_transaction` and `train_identity` tables by `TransactionID`.
 
+Note: To prevent data leakage, I calculated the rolling-window aggregates from the first occurrence up to the row preceding the current one (`ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING`).
+
+### Behavioral Assumptions & Aggregates
 My first behavioral assumption was: `card1` = unique user id, `uid1`.
 I experimented with more specific pseudo-identifiers: `uid2 = card1_card2`, `uid3 = card1_card2_addr1`, `uid4 = card1_card2_addr1_Pemaildomain`.
 These features produced severe overfitting, so I removed them and kept the simpler `uid1` representation.
 
 Then I made the aggregates by `uid1` with rolling-windows.
 
-Note: To prevent data leakage, I calculated the rolling-window aggregates from the first occurrence up to the row preceding the current one (`ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING`).
-
-### Behavioral Assumptions
 I made several behavioral assumptions and built the following aggregates based on `uid1`:
 - Count of transactions for the last 5m, 1h, 24h, 7d,
 - Time since last transaction,
