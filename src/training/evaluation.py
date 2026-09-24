@@ -18,7 +18,7 @@ from sklearn.metrics import (
     roc_auc_score,
     roc_curve,
 )
-from sklearn.model_selection import StratifiedKFold
+from sklearn.model_selection import TimeSeriesSplit
 
 from src.paths import INFERENCE_PATH, PLOTS_DIR
 
@@ -54,10 +54,10 @@ def cross_validation(X_train: pd.DataFrame, X_val: pd.DataFrame, y_train: pd.Ser
     X_cv[categorical_cols] = X_cv[categorical_cols].astype("category")
 
     start = time.time()
-    kf = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=42)
+    tscv = TimeSeriesSplit(n_splits=n_splits)
     scores = []
 
-    for train_idx, val_idx in kf.split(X_cv, y_cv):
+    for train_idx, val_idx in tscv.split(X_cv):
         X_train_fold, X_val_fold = X_cv.iloc[train_idx], X_cv.iloc[val_idx]
         y_train_fold, y_val_fold = y_cv.iloc[train_idx], y_cv.iloc[val_idx]
 
