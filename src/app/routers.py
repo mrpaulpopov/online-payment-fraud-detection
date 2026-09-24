@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 import time
@@ -109,14 +110,16 @@ async def predict_endpoint(data: Transaction, request: Request,
         # =======================================
 
         # ======== SEND TO A SERVICE ============
-        transaction_id, is_fraud, fraud_probability, reason = process_payment(transaction_dict, inference_meta,
-                                                                              model_lgbm)
+        transaction_id, is_fraud, fraud_probability, reason = await asyncio.to_thread(process_payment,
+                                                                                      transaction_dict,
+                                                                                      inference_meta,
+                                                                                      model_lgbm)
 
         # ======= REDIS: SAVE TO SQL ============
-        await redis_client.rpush("manual_tx_queue", json.dumps(transaction_dict))
+        await redis_client.rpush("manual_tx_queue", json.dumps(transaction_dict, default=str))
 
         latency = round(float(time.time() - start) * 1000, 2)
-        logger.info(f"Prediction completed in {latency:.8f}s")
+        logger.info(f"Prediction completed in {latency:.8f} ms")
 
     except RedisError as e:
         logger.error(f'Redis error during prediction: {e}')
